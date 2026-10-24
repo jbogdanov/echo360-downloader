@@ -1,0 +1,20 @@
+{
+  "jobs": [
+    {
+      "lesson_url": "https://echo360.org.uk/lesson/REPLACE_WITH_REAL_LESSON_ID/classroom",
+      "public_course_url": "https://echo360.org.uk/section/REPLACE_WITH_REAL_SECTION_ID/public",
+      "name": "Lecture 01",
+      "large_source": 2,
+      "small_source": 1,
+      "encoder": "auto"
+    },
+    {
+      "lesson_url": "https://echo360.org.uk/lesson/REPLACE_WITH_ANOTHER_REAL_LESSON_ID/classroom",
+      "public_course_url": "https://echo360.org.uk/section/REPLACE_WITH_REAL_SECTION_ID/public",
+      "name": "Lecture 02",
+      "large_source": 1,
+      "small_source": 2,
+      "encoder": "auto"
+    }
+  ]
+}

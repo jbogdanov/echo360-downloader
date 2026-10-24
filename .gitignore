@@ -1,0 +1,27 @@
+# Local Python environment and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Downloaded lectures, generated media, and local job state
+downloads/
+jobs/
+validation/
+_temporary/
+*.mp4
+*.m4a
+*.mkv
+*.log
+*.lock
+*.verification.json
+manifest.json
+status.json
+STATUS.txt
+
+# Local configuration and credentials
+.env
+.env.*
+my-lectures*.json
+Thumbs.db
+desktop.ini
