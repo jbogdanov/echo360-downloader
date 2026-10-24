@@ -2,6 +2,8 @@
 
 Download a specific public Echo360 lecture, identify its video streams, choose which one should be large, and combine them into one offline MP4. Everything runs on your own computer.
 
+This project was fully created with Codex GPT-6 Astra.
+
 ## Quick start on this computer
 
 1. Open this toolkit folder and double-click **`START.cmd`**.
