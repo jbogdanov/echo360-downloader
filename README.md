@@ -1,6 +1,6 @@
 # echo360-downloader
 
-Download a specific public Echo360 lecture, identify its video streams, choose which one should be large, and combine them into one offline MP4. Everything runs on your own computer. **No ChatGPT, Codex, API key, subscription, or AI tokens are needed to run these scripts.**
+Download a specific public Echo360 lecture, identify its video streams, choose which one should be large, and combine them into one offline MP4. Everything runs on your own computer.
 
 ## Quick start on this computer
 
@@ -9,7 +9,7 @@ Download a specific public Echo360 lecture, identify its video streams, choose w
 3. Paste the URL of the **specific lesson**. In Echo360, open the recording and copy the full classroom URL from the address bar.
 4. Paste the course's **public section URL** when prompted. This establishes the public viewing session that some recordings require.
 5. Enter an optional folder name, such as `Week 05 - Cloud Architecture`. Press Enter for the automatic name. Choose a download parent folder or press Enter for this toolkit's `downloads` folder.
-6. The script downloads every available video stream at its highest listed resolution and adds the lecture's shared audio to each MP4. Leave this console open during downloading. No AI is involved while it waits.
+6. The script downloads every available video stream at its highest listed resolution and adds the lecture's shared audio to each MP4. Leave this console open during downloading.
 7. `STREAM_PREVIEW.jpg` opens automatically on Windows. Each row is one source, with frames near the beginning, middle, and end. You can also play the individual `source_1.mp4`, `source_2.mp4`, etc.
 8. Enter the source ID that should be **large on the left**, then the distinct source ID that should be **small on the right**.
 9. Press Enter for the `auto` encoder. The script starts a detached background process and prints its status/log paths. You can now close the console.
@@ -182,7 +182,7 @@ Each detached job gets a folder under `jobs`, such as `jobs/20261025-120000-a1b2
 
 `state: complete` means all required checks succeeded. `state: failed` contains an error; inspect the log. A `.partial.mp4` is an unfinished file and should not be treated as the final result.
 
-The background worker is detached from the launcher and does not use this chat or any AI service. It temporarily prevents automatic Windows sleep while running, without changing your permanent power settings. **Do not shut down, restart, manually sleep the computer, or close a laptop lid while it is working.** Keep it powered. Internet is required for downloads, but not for combining local files.
+The background worker runs independently of the launcher. It temporarily prevents automatic Windows sleep while running, without changing your permanent power settings. **Do not shut down, restart, manually sleep the computer, or close a laptop lid while it is working.** Keep it powered. Internet is required for downloads, but not for combining local files.
 
 To stop a job, use Task Manager's Details view and the worker/FFmpeg PIDs recorded in `status.json`. Stop the worker and its active FFmpeg process. Stopping only the launcher window will not stop a detached worker. After a forced stop, the last status can remain `running`; check the PIDs before assuming it is active. There is no automatic restart after reboot.
 
@@ -219,7 +219,7 @@ On Windows, the toolkit requests **Always keep on this device** using `attrib +P
 - `SETUP.cmd`, `setup.ps1`, `requirements.txt`: private Python environment and dependencies.
 - `RUN_BATCH.cmd`, `examples/batch.example.json`: unattended batch workflow.
 - `tests/test_toolkit.py`: offline regression tests for playlist handling, source IDs, and overwrite guards.
-- `VALIDATION.md`: results of testing this toolkit locally.
+- `tests/test_download_integration.py`: local HTTP download, audio muxing, verification, and cache reuse tests.
 
 Run the offline tests with:
 
@@ -228,3 +228,19 @@ Run the offline tests with:
 ```
 
 For help on any command, append `--help`, for example `echo360_tool.py combine --help`.
+
+## Validation
+
+Validated on 25 October 2026, Windows, Python 3.13, with the private environment created by `setup.ps1`.
+
+- Setup succeeded from a folder whose path includes spaces and Estonian characters. Dependencies: imageio-ffmpeg 0.6.0 and Pillow 12.2.0; bundled FFmpeg 7.1.
+- Seven automated tests passed. They cover duration parsing, highest-resolution playlist selection, relative URLs, rejecting encrypted/unsupported layouts, source IDs independent of array order, protecting input files, and an HTTP download integration test.
+- The integration test generated two short video-only files and separate AAC audio, served them over local HTTP, downloaded and muxed both streams, verified playback, generated a contact sheet, and confirmed checksum-based reuse without another full transfer. Test media was temporary.
+- A real public Echo360 lesson was inspected using a fresh public course session. Both video playlists and the audio playlist resolved successfully. Small HTTP range requests returned valid MP4 headers for all three tracks. Evidence: `validation/public-session-check.json`. This check did not redownload the full lecture.
+- Two detached background jobs successfully combined existing real lecture files into three-second samples, one with the teacher large and one with the computer large. Both jobs reached `complete`, including packet reads and sample decoding. Both outputs contain H.264 video at 1760 × 720 and AAC audio.
+- The second background job used the toolkit's private Python environment. The launcher returned before encoding completed. CPU encoding was used for these tests so the pre-existing course encoding queue could continue using the GPU.
+- The generated `validation/layout-comparison.jpg` was visually reviewed: the selected large video is on the left, the small video is centered on the right, and neither overlaps the other.
+
+The toolkit's new batch orchestration was reviewed but a full multi-hour batch was not repeated. NVIDIA encoding uses the same established FFmpeg settings as the existing lecture queue; these toolkit sample tests specifically exercised the CPU path. No claim is made that every Echo360 deployment or player format is supported.
+
+Samples and their verification reports are kept locally under `validation`. Completed test job logs remain locally under `jobs`. These directories, lecture media, and machine-specific paths are excluded from the Git repository. They are examples, not ongoing tasks; a fresh clone contains the source code and reproducible offline tests instead.
