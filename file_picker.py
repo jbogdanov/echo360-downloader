@@ -59,7 +59,10 @@ def choose_video(title, start, excluded=None):
             columns, lines = shutil.get_terminal_size((100, 25))
             width, page_size = max(1, columns - 1), max(1, lines - 8)
             first = cursor // page_size * page_size
-            rows = [f'ECHO360 RIPPER - Choose {title} video', '-' * width, str(folder), '']
+            rows = [f'ECHO360 RIPPER - Choose {title} video', '-' * width, str(folder), '',
+                    'Up/Down: move | Enter: open/select | Backspace: parent',
+                    'P: paste folder/file path (any drive) | Q/Esc: cancel | PgUp/PgDn: page',
+                    message or 'Folders and video files only. Enter chooses the highlighted video.', '']
             selected_row = len(rows) + cursor - first if entries else None
             for index in range(first, min(first + page_size, len(entries))):
                 path = entries[index]
@@ -67,11 +70,6 @@ def choose_video(title, start, excluded=None):
                 rows.append(f'{">" if index == cursor else " "} {label}')
             if not entries:
                 rows.append('(No video files or folders here)')
-            rows.extend([''] * max(0, lines - 4 - len(rows)))
-            rows.extend(['-' * width,
-                         message or 'Folders and video files only. Enter chooses the highlighted video.',
-                         'Up/Down: move | Enter: open/select | Backspace: parent',
-                         'P: paste folder/file path (any drive) | Q/Esc: cancel | PgUp/PgDn: page'])
             clean = lambda text: re.sub(r'[\x00-\x1f\x7f]', '', text)[:width]
             rows = [clean(row) for row in rows]
             if 'NO_COLOR' not in os.environ:
