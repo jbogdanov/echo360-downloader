@@ -13,6 +13,8 @@
 
 Download public Echo360 lectures for offline viewing. Choose a single lesson or select several lessons from a course, then optionally combine two video streams into one MP4 with a large video on the left and a smaller video on the right.
 
+Each downloaded source MP4 includes audio and can be watched independently. Merging is optional; it puts both pictures into one video with a single audio track.
+
 This project was fully created with Codex GPT-6 Astra.
 
 ## 1. Set up the toolkit
@@ -84,12 +86,12 @@ Follow these prompts in order:
 6. If **Public course/section URL** appears, paste that course's public link. Visiting it establishes the viewing session needed by some lessons.
 7. Wait while every available source stream downloads at its highest listed resolution and receives the shared audio. **Keep this console open during this download stage.**
 8. At **Combine the downloaded streams into one video? [Enter = yes, n = no]**, press **Enter** or type **y** to merge. Type **n** to finish with separate MP4s.
-9. If you chose **y**, the toolkit displays and opens `SOURCE_PREVIEWS.jpg`. Inspect the rows to identify the camera and computer screen. These are **input source previews**, not a preview of the final merged layout.
+9. After you press **Enter** or type **y** to accept merging, the toolkit displays and opens `SOURCE_PREVIEWS.jpg`. Inspect the rows to identify the camera and computer screen. These are **input source previews**, not a preview of the final merged layout.
 10. At **Source ID for the LARGE video on the LEFT (1, 2)**, enter the ID you want large. The prompt lists the actual available IDs. With two streams, the other becomes small on the right automatically. With more than two, choose the small source from a second prompt.
 11. At **Encoder: auto, nvenc, or cpu [auto]**, press Enter for `auto`, or choose an encoder from the table below.
 12. The merge starts in the background, and live status appears in the same console. Wait for **Job complete. All output checks passed.** The result is saved beside the source files, for example `combined_large-2_small-1.mp4`.
 
-If the lesson contains only one video stream, downloading completes without a merge question. If you decline merging, the preview filename is not announced or opened; you can inspect the saved image later.
+If the lesson contains only one video stream, downloading completes without a merge question. If you type **n** to decline merging, both source MP4s remain ready to play with audio. The preview filename is not announced or opened; you can inspect the saved image later.
 
 **Source IDs are not role labels.** Source 1 might show slides in one lesson and the lecturer in another. Choose using the previews or play the source MP4s. The previews sample the beginning, middle, and end; inspect more of the recording if the content changes.
 
@@ -126,7 +128,7 @@ Option 2 asks for **file paths**, not source IDs, and does not automatically ope
 3. Wait for the lesson list to load. It shows dates and times in the course's local timezone and indicates which recordings are available.
 4. Move through the list and mark the lessons you want with **Space** or **X**. Selected lessons display `[X]`. Nothing is selected initially.
 5. Press **Enter** when your selection is ready. The selected lessons are listed in the console.
-6. At **Course folder name [Echo360]**, enter a name such as `Course`.
+6. At **Course folder name [Echo360]**, enter a name such as `Course`, or press Enter for `Echo360`.
 7. At **Download root folder**, press Enter for `downloads`, or enter an absolute path. Each selected lesson gets its own automatic date/ID subfolder inside the course folder; there is no individual subfolder-name prompt in this workflow.
 8. The background batch starts automatically. Follow the current lesson and download messages in the same window. When it finishes, open the course folder to find the source MP4s.
 
@@ -151,7 +153,7 @@ Option 2 asks for **file paths**, not source IDs, and does not automatically ope
 
 If the terminal cannot display the Windows keyboard checklist, a numbered version appears instead. Type `1,3,5-7` and press Enter to toggle those rows; use `a` for all available, `n` for none, an empty Enter to continue, or `q` to cancel.
 
-**This workflow downloads all source streams of each selected lesson.** It does not choose a camera/screen stream or merge automatically. Source previews are saved silently in each lesson folder. Use **option 2** afterward to merge a pair, or prepare a merge batch with **option 4** once you have identified the source IDs for each lesson.
+**This workflow downloads all source streams of each selected lesson, with audio in each MP4.** It does not choose a camera/screen stream or merge automatically. Source previews are saved silently in each lesson folder. You can watch any source file directly, use **option 2** afterward to merge a pair, or prepare a merge batch with **option 4** once you have identified the source IDs for each lesson.
 
 The selection is saved in `jobs\<job-id>\job.json`. If a lesson fails, the batch records the error and continues with the remaining lessons. Use option 4 to retry the saved selection; completed downloads whose checksums still match are reused.
 
@@ -225,7 +227,7 @@ downloads/
 
 Source counts vary. Option 3 uses automatic date/ID subfolders instead of `02`. Option 2 writes to the exact output path you entered.
 
-1. Open a source MP4 to watch one stream, or a combined MP4 to watch both together.
+1. Open `source_1.mp4` or `source_2.mp4` to watch that stream with the lecture audio, or open the combined MP4 to watch both pictures together. A separate audio file is not needed.
 2. Confirm playback and audio, including a point near the end.
 3. If the files are in OneDrive, confirm they are available locally. The toolkit requests **Always keep on this device** for final MP4s.
 4. Before a flight, disconnect from the network and check that the files still play.
@@ -243,6 +245,8 @@ Source counts vary. Option 3 uses automatic date/ID subfolders instead of `02`. 
 
 Both images keep their aspect ratio, with black padding as needed. The smaller picture sits beside the larger one and does not cover it. The original source files remain available for viewing small text at full size.
 
+The combined file uses one input's audio track, so the shared lecture audio is not played twice. For other local files, it uses the large input's audio when available, otherwise the small input's audio.
+
 The two video timelines start together. Inputs must normally match in duration within two seconds. The toolkit does not detect or repair timing offsets between unrelated recordings. Existing black frames or missing-camera content remain in the output.
 
 ### Job files
@@ -259,7 +263,6 @@ The two video timelines start together. Inputs must normally match in duration w
 `state: complete` means required checks passed. A failed or forcibly stopped job may leave a partial output; inspect its log and process state before retrying. Do not run simultaneous jobs targeting the same files.
 
 ## Advanced command-line usage
-
 
 Open PowerShell in the toolkit folder. These commands use its private Python environment directly, so activation is unnecessary. Replace the example URLs and filenames with real ones. Keep quotes around paths containing spaces.
 
@@ -384,6 +387,7 @@ Validation recorded on **25 October 2026**, on Windows with Python 3.13, imageio
 
 - **37 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, wizard prompts, course discovery/selection, batch failure handling, and live monitoring.
 - Local HTTP integration downloaded two streams plus shared audio, muxed and verified the outputs, created source previews, and checked checksum-based reuse. A two-lesson download batch also completed successfully.
+- All eight source MP4s checked across four downloaded lessons contained AAC audio. Ten-second samples starting one minute into each file decoded with non-silent audio; this was a sample check, not a full listening review.
 - Metadata discovery succeeded for all four supplied public courses. The Windows checklist was exercised in a real console using Space/X, arrows, Page Down, and Enter.
 - Real lecture files were merged into short CPU-encoded samples in both layout orientations. Output checks passed, and the layout was visually reviewed.
 - Background monitoring was verified with eight- and sixty-second samples. Closing one monitor left the worker running; another monitor observed successful completion.
