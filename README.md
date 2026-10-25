@@ -142,13 +142,6 @@ If the console cannot support keyboard navigation, option 2 asks you to paste bo
 
 ![Course lesson picker with seven recordings checked and navigation controls at the bottom](docs/screenshots/course-selection.jpg)
 
-```text
-  [X]   1. 2026-09-01 14:00 (Europe/Tallinn) | Lecture 1
-> [ ]   2. 2026-09-01 16:00 (Europe/Tallinn) | Practical session
-  [X]   3. 2026-09-08 14:00 (Europe/Tallinn) | Lecture 2
-  [-]   4. 2026-12-01 14:00 (Europe/Tallinn) | Lecture 3 -- Not recorded yet
-```
-
 | Key | Action |
 |---|---|
 | Up / Down | Move the `>` cursor |
