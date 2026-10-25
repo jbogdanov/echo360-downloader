@@ -12,5 +12,5 @@ if not exist "%~dp0.venv\Scripts\python.exe" (
     exit /b 1
   )
 )
-"%~dp0.venv\Scripts\python.exe" -u "%~dp0echo360_tool.py" batch "%~1" --background
+"%~dp0.venv\Scripts\python.exe" -u "%~dp0echo360_tool.py" batch "%~1" --background --watch
 pause

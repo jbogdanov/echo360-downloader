@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -446,23 +447,38 @@ def _combine(large, small, output, encoder='auto', seconds=None, allow_different
     args += ['-t', str(expected), '-shortest', '-movflags', '+faststart', '-progress', 'pipe:1', '-y', str(partial)]
     log_path = output.with_suffix('.ffmpeg.log')
     status_line(f'Encoding with {chosen}: {output}', 'ENCODE')
-    update_status(job_dir, phase='encoding', output=str(output), encoder=chosen, percent=0)
+    update_status(job_dir, phase='encoding', output=str(output), encoder=chosen, percent=0,
+                  total_seconds=expected, processed_seconds=0, speed_x=None, eta_seconds=None, elapsed_seconds=0)
     with log_path.open('w', encoding='utf-8') as log:
         proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=log, text=True, creationflags=NO_WINDOW)
-        last = 0
+        began = time.monotonic()
+        last = last_log = 0
+        progress = {}
         for line in proc.stdout:
             key, _, value = line.strip().partition('=')
-            if key == 'out_time_us' and time.monotonic()-last > 5:
+            progress[key] = value
+            if key == 'progress' and (time.monotonic()-last >= 1 or value == 'end'):
                 try:
-                    percent = min(100, max(0, int(value)/1e6/expected*100))
+                    processed = max(0, int(progress.get('out_time_us', 0))/1e6)
                 except ValueError:
                     continue
-                update_status(job_dir, percent=round(percent, 1), ffmpeg_pid=proc.pid)
-                status_line(f'{percent:.1f}%', 'PROGRESS')
+                percent = min(100, processed/expected*100)
+                try:
+                    speed = float(progress.get('speed', '').strip().removesuffix('x'))
+                except ValueError:
+                    speed = 0
+                eta = max(0, expected-processed)/speed if speed > 0 else None
+                update_status(job_dir, percent=round(percent, 1), ffmpeg_pid=proc.pid,
+                              processed_seconds=round(processed, 1), speed_x=round(speed, 2) if speed > 0 else None,
+                              eta_seconds=round(eta) if eta is not None else None,
+                              elapsed_seconds=round(time.monotonic()-began))
+                if time.monotonic()-last_log >= 5 or value == 'end':
+                    status_line(f'{percent:.1f}%', 'PROGRESS')
+                    last_log = time.monotonic()
                 last = time.monotonic()
         if proc.wait():
             raise RuntimeError(f'Encoding failed. See {log_path}')
-    update_status(job_dir, phase='verifying', percent=100)
+    update_status(job_dir, phase='verifying', percent=100, eta_seconds=None)
     info = verify(partial, expected)
     partial.replace(output)
     pin(output)
@@ -485,17 +501,157 @@ def start_background(job):
         else:
             kwargs['start_new_session'] = True
         proc = subprocess.Popen([sys.executable, '-u', str(Path(__file__).resolve()), '_worker', str(directory)], **kwargs)
+    write_json(directory / 'launcher.json', {'pid': proc.pid})
     print()
     status_line(f'Job started. PID: {proc.pid}', 'BACKGROUND')
     status_line(f'Status: {directory / "STATUS.txt"}\nLog: {directory / "run.log"}')
     return directory
 
 
+def process_alive(pid):
+    if os.name == 'nt':
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        handle = kernel.OpenProcess(0x00100000, False, int(pid))
+        if not handle:
+            return None if ctypes.get_last_error() == 5 else False
+        try:
+            return kernel.WaitForSingleObject(handle, 0) == 258
+        finally:
+            kernel.CloseHandle(handle)
+    try:
+        os.kill(int(pid), 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return None
+
+
+def clock_text(seconds):
+    if seconds is None:
+        return '--:--'
+    seconds = max(0, int(seconds))
+    return f'{seconds//3600:02}:{seconds%3600//60:02}:{seconds%60:02}'
+
+
+def progress_text(state):
+    phase = state.get('phase', state.get('state', 'starting'))
+    item = f"Job {state['item']}/{state['total']} | " if state.get('total') else ''
+    if phase == 'encoding':
+        percent = min(100, max(0, float(state.get('percent', 0))))
+        filled = int(percent/5)
+        bar = '#' * filled + '-' * (20-filled)
+        speed = f"{state['speed_x']:.1f}x" if state.get('speed_x') else '--x'
+        return f'{item}[{bar}] {percent:5.1f}% | {speed} | ETA {clock_text(state.get("eta_seconds"))} | {state.get("encoder", "encoding")}'
+    if phase == 'verifying':
+        return f'{item}Encoding finished. Verifying the output...'
+    return f'{item}{str(phase).replace("_", " ").capitalize()}...'
+
+
+def watch_job(directory=None):
+    if directory is None:
+        candidates = sorted((HOME / 'jobs').glob('*/job.json'))
+        if not candidates:
+            raise FileNotFoundError('No background jobs found yet.')
+        directory = candidates[-1].parent
+    directory = Path(directory).expanduser().resolve()
+    if directory.is_file():
+        directory = directory.parent
+    if not (directory / 'job.json').is_file():
+        raise FileNotFoundError(f'Not a job folder: {directory}')
+    status_line(f'Live status: {directory.name}', 'WATCH')
+    status_line('Close this window or press Ctrl+C to stop watching. The background job keeps running.')
+    interactive = getattr(sys.stdout, 'isatty', lambda: False)()
+    log_offset = 0
+    log_pending = ''
+    last_text = None
+    line_width = 0
+    dead_since = None
+    started = time.monotonic()
+
+    def clear_line():
+        nonlocal line_width
+        if line_width:
+            print('\r' + ' '*line_width + '\r', end='', flush=True)
+            line_width = 0
+
+    try:
+        while True:
+            try:
+                state = read_json(directory / 'status.json')
+            except (OSError, ValueError):
+                state = {'state': 'starting'}
+            try:
+                with (directory / 'run.log').open('r', encoding='utf-8', errors='replace') as log:
+                    log.seek(log_offset)
+                    chunk = log.read()
+                    log_offset = log.tell()
+                lines = (log_pending + chunk).split('\n')
+                log_pending = lines.pop()
+                for line in lines:
+                    line = line.rstrip('\r')
+                    if not line or line.startswith('> [PROGRESS]'):
+                        continue
+                    clear_line()
+                    match = re.match(r'^> \[([A-Z]+)\] (.*)$', line)
+                    if match:
+                        status_line(match[2], match[1])
+                    else:
+                        status_line(line.removeprefix('> '))
+            except OSError:
+                pass
+            if state.get('state') in ('complete', 'failed'):
+                clear_line()
+                if state['state'] == 'failed':
+                    status_line(state.get('error', 'The job failed. See run.log.'), 'ERROR')
+                    return 1
+                status_line('Job complete. All output checks passed.', 'COMPLETE')
+                if state.get('output'):
+                    status_line(f'Output: {state["output"]}')
+                if state.get('total'):
+                    status_line(f'Batch report: {directory / "batch-report.json"}')
+                return 0
+            pid = state.get('pid')
+            if not pid:
+                try:
+                    pid = read_json(directory / 'launcher.json').get('pid')
+                except (OSError, ValueError):
+                    pass
+            dead = process_alive(pid) is False if pid else time.monotonic()-started > 15
+            dead_since = (dead_since or time.monotonic()) if dead else None
+            if dead_since and time.monotonic()-dead_since > 2:
+                clear_line()
+                status_line('The worker is no longer running and did not report completion. Check run.log before retrying.', 'ERROR')
+                return 1
+            text = progress_text(state)
+            if interactive:
+                width = max(20, shutil.get_terminal_size((100, 24)).columns-1)
+                text = text[:width]
+                clear_line()
+                print('\r' + colored(text, '94', sys.stdout), end='', flush=True)
+                line_width = len(text)
+            elif text != last_text:
+                status_line(text, 'PROGRESS')
+            last_text = text
+            time.sleep(1)
+    except KeyboardInterrupt:
+        clear_line()
+        status_line('Stopped watching. The background job continues.', 'BACKGROUND')
+        status_line(f'Reopen with: WATCH.cmd "{directory}"')
+        return 0
+
+
 def run_batch(jobs, job_dir=None):
     results = []
     failures = []
     for number, job in enumerate(jobs, 1):
-        update_status(job_dir, phase='downloading', item=number, total=len(jobs))
+        update_status(job_dir, phase='downloading', item=number, total=len(jobs), percent=None,
+                      output=None, encoder=None, speed_x=None, eta_seconds=None)
         try:
             folder, manifest = download(job['lesson_url'], job.get('public_course_url'), job.get('name'), job.get('output_root'))
             mapping = {r['source_id']: folder / r['file'] for r in manifest['streams']}
@@ -588,8 +744,7 @@ def wizard():
     mode = input('Choose 1, 2, or 3 [1]: ').strip() or '1'
     if mode == '3':
         config = read_json(prompt_path('Batch JSON path: '))
-        start_background({'type': 'batch', 'jobs': config['jobs']})
-        return
+        return watch_job(start_background({'type': 'batch', 'jobs': config['jobs']}))
     if mode == '1':
         lesson = input('Specific lesson/classroom URL: ').strip()
         course_name = slug(input('Course folder name [Echo360]: ').strip() or 'Echo360')
@@ -627,14 +782,17 @@ def wizard():
     encoder = input('Encoder: auto, nvenc, or cpu [auto]: ').strip() or 'auto'
     if encoder not in ('auto', 'nvenc', 'cpu'):
         raise ValueError('Encoder must be auto, nvenc, or cpu.')
-    start_background({'type': 'combine', 'options': dict(large=large_path, small=small_path, output=output, encoder=encoder)})
-    status_line('You can close this console. Leave the computer on while the background job runs.')
+    directory = start_background({'type': 'combine', 'options': dict(large=large_path, small=small_path, output=output, encoder=encoder)})
+    status_line('Leave the computer on while the background job runs.')
+    return watch_job(directory)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='command', required=True)
     sub.add_parser('wizard')
+    p = sub.add_parser('watch', help='Watch a background job; defaults to the most recent job.')
+    p.add_argument('directory', nargs='?')
     for name in ('inspect', 'download'):
         p = sub.add_parser(name)
         p.add_argument('--lesson', required=True)
@@ -653,15 +811,19 @@ def main():
     p.add_argument('--seconds', type=float, help='Encode only a short sample from the start.')
     p.add_argument('--allow-different-duration', action='store_true')
     p.add_argument('--background', action='store_true')
+    p.add_argument('--watch', action='store_true', help='Show live progress after starting the background job.')
     p = sub.add_parser('batch')
     p.add_argument('config')
     p.add_argument('--background', action='store_true')
+    p.add_argument('--watch', action='store_true', help='Show live progress after starting the background batch.')
     p = sub.add_parser('_worker', help=argparse.SUPPRESS)
     p.add_argument('directory')
     args = vars(parser.parse_args())
     command = args.pop('command')
     if command == 'wizard':
-        wizard()
+        return wizard()
+    elif command == 'watch':
+        return watch_job(args['directory'])
     elif command == 'inspect':
         _, video = player(args['lesson'], args['course'])
         tracks, audio = select_tracks(video)
@@ -672,11 +834,18 @@ def main():
         preview_files([(f'Input {i+1}', Path(f)) for i,f in enumerate(args['files'])], args['output'])
     elif command == 'combine':
         background = args.pop('background')
+        watch = args.pop('watch')
+        if watch and not background:
+            parser.error('--watch requires --background')
         for key in ('large', 'small', 'output'):
             args[key] = str(Path(args[key]).expanduser().resolve())
-        if background: start_background({'type': 'combine', 'options': args})
+        if background:
+            directory = start_background({'type': 'combine', 'options': args})
+            if watch: return watch_job(directory)
         else: combine(**args)
     elif command == 'batch':
+        if args['watch'] and not args['background']:
+            parser.error('--watch requires --background')
         jobs = read_json(args['config'])['jobs']
         if not isinstance(jobs, list) or not jobs:
             raise ValueError('The batch file must contain a non-empty jobs array.')
@@ -684,7 +853,9 @@ def main():
         for job in jobs:
             if job.get('output_root'):
                 job['output_root'] = str(Path(job['output_root']).expanduser().resolve())
-        if args['background']: start_background({'type': 'batch', 'jobs': jobs})
+        if args['background']:
+            directory = start_background({'type': 'batch', 'jobs': jobs})
+            if args['watch']: return watch_job(directory)
         else: run_batch(jobs)
     elif command == '_worker':
         worker(args['directory'])
@@ -692,7 +863,7 @@ def main():
 
 if __name__ == '__main__':
     try:
-        main()
+        sys.exit(main() or 0)
     except KeyboardInterrupt:
         status_line('Stopped. Completed files were retained.', 'WARNING', stream=sys.stderr)
         sys.exit(130)

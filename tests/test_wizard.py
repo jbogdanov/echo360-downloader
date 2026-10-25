@@ -20,6 +20,7 @@ class WizardTests(unittest.TestCase):
         with patch('builtins.input', side_effect=answers) as prompts, \
                 patch.object(tool, 'download', return_value=(folder, manifest)) as download, \
                 patch.object(tool, 'start_background') as background, \
+                patch.object(tool, 'watch_job', return_value=0), \
                 patch.object(tool.os, 'startfile', create=True) as open_preview, \
                 patch('sys.stdout', new_callable=io.StringIO) as output:
             tool.wizard()
@@ -104,6 +105,7 @@ class WizardTests(unittest.TestCase):
         with patch('builtins.input', side_effect=respond), \
                 patch.object(tool, 'download', return_value=(folder, manifest)), \
                 patch.object(tool, 'start_background'), \
+                patch.object(tool, 'watch_job', return_value=0), \
                 patch.object(tool.os, 'startfile', create=True), \
                 patch('sys.stdout', output):
             tool.wizard()

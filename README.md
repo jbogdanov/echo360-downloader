@@ -14,7 +14,7 @@ This project was fully created with Codex GPT-6 Astra.
 6. The script tries the lesson link directly. **Only if access fails**, it asks for the course's public section URL to establish a viewing session. It then downloads every available video stream at its highest listed resolution and adds the shared audio to each MP4. Leave this console open during downloading.
 7. After downloading, answer **y** to combine the streams, or **n / Enter** to keep the separate videos without encoding.
 8. Only after you accept merging, the console displays the path to `SOURCE_PREVIEWS.jpg` and opens it on Windows. **This shows the separate input streams, not the merged output or its layout.** Each row is one source, with frames near the beginning, middle, and end. Enter the source ID that should be **large on the left**; available IDs appear in the prompt, for example `(1, 2)`. With two streams, the other ID is automatically used **small on the right**. If more than two streams exist, a second choice identifies which remaining stream to use.
-9. Press Enter for the `auto` encoder. The script starts a detached background process and prints its status/log paths. You can now close the console.
+9. Press Enter for the `auto` encoder. The script starts a detached background process and shows live progress in the same console: percentage, encoding speed, estimated time remaining, and the final verification stage. You can close the console or press **Ctrl+C** to stop watching; the background job continues.
 
 The result is named, for example, `combined_large-2_small-1.mp4` and is saved beside the downloaded source files. The originals remain available.
 
@@ -140,10 +140,10 @@ After visually confirming that source 2 is the teacher and source 1 is the compu
   --large "C:\Videos\Echo360\Lecture 05\source_2.mp4" `
   --small "C:\Videos\Echo360\Lecture 05\source_1.mp4" `
   --output "C:\Videos\Echo360\Lecture 05\teacher-large.mp4" `
-  --encoder auto --background
+  --encoder auto --background --watch
 ```
 
-For slides large, swap the two input paths and use another output name. Without `--background`, the same job runs in the current console and prints progress there.
+For slides large, swap the two input paths and use another output name. Omit `--watch` to return immediately after launching the background job. Without `--background --watch`, the job runs in the foreground and prints progress there; closing that console can interrupt it.
 
 ### Make a short trial before encoding a long lecture
 
@@ -178,7 +178,7 @@ NVENC uses preset `p4` and CQ 21. Hardware performance varies. Run a short trial
 Equivalent command:
 
 ```powershell
-.\.venv\Scripts\python.exe .\echo360_tool.py batch .\my-lectures.json --background
+.\.venv\Scripts\python.exe .\echo360_tool.py batch .\my-lectures.json --background --watch
 ```
 
 The batch processes items sequentially: download, verify, combine, verify, then the next item. A failed item is recorded and the batch continues to the next one. The final `batch-report.json` lists successes and failures. Rerunning the same batch reuses checksum-matching downloads and completed combined files. Do not edit a batch's source roles while reusing the same output name; choose a new output when changing settings.
@@ -189,6 +189,28 @@ A batch needs an explicit list of lesson URLs. It does not enumerate course page
 
 Console messages use `>` markers and labels such as `[DOWNLOAD]`, `[READY]`, `[PREVIEW]`, and `[BACKGROUND]`. Interactive terminals show information in cyan, completed steps in green, warnings in yellow, errors in red, and progress in blue. Background logs and redirected output remain plain text, without color escape codes. Set the `NO_COLOR` environment variable to disable colors; terminals without color support also use plain text.
 
+`START.cmd` and `RUN_BATCH.cmd` automatically show a live monitor in the same window. During encoding, it updates about once per second:
+
+```text
+[########------------]  40.0% | 3.2x | ETA 00:17:15 | nvenc
+```
+
+Speed `3.2x` means approximately 3.2 seconds of video are processed per second. ETA is an estimate for encoding only; file verification still runs afterward. Batch jobs also show the current item, such as `Job 2/8`. Download messages appear as they arrive in the log.
+
+To view progress in a **separate window**, double-click **`WATCH.cmd`**. It opens the most recently started job. Drag a particular job folder or its `STATUS.txt` onto `WATCH.cmd` to select that job instead. You can reopen the monitor at any time, including for jobs that have already finished.
+
+From PowerShell:
+
+```powershell
+# Watch the most recently started job
+.\.venv\Scripts\python.exe .\echo360_tool.py watch
+
+# Watch a specific job (replace with your actual job folder)
+.\.venv\Scripts\python.exe .\echo360_tool.py watch ".\jobs\20261025-120000-a1b2c3"
+```
+
+Closing a monitor or pressing **Ctrl+C** only stops that display. The detached worker continues, and other monitors remain open. A monitor reports success only after verification finishes; it reports an error if the worker fails or exits without reporting completion.
+
 Each detached job gets a folder under `jobs`, such as `jobs/20261025-120000-a1b2c3/`:
 
 | File | Meaning |
@@ -196,6 +218,7 @@ Each detached job gets a folder under `jobs`, such as `jobs/20261025-120000-a1b2
 | `job.json` | Exact inputs and selected layout |
 | `STATUS.txt` | Readable current state and progress |
 | `status.json` | The same state in JSON, including process IDs |
+| `launcher.json` | Initial launcher process ID, used while the worker starts |
 | `run.log` | Download/encoding messages and errors |
 | `result.json` | Successful final result |
 | `batch-report.json` | Per-item batch successes and failures |
@@ -236,11 +259,13 @@ On Windows, the toolkit requests **Always keep on this device** using `attrib +P
 
 - `echo360_tool.py`: downloader, preview generator, combiner, wizard, batch processor, and background worker.
 - `START.cmd`: interactive workflow.
+- `WATCH.cmd`: live status for the latest job, or a job folder dropped onto it.
 - `SETUP.cmd`, `setup.ps1`, `requirements.txt`: private Python environment and dependencies.
 - `RUN_BATCH.cmd`, `examples/batch.example.json`: unattended batch workflow.
 - `tests/test_toolkit.py`: offline regression tests for playlist handling, source IDs, and overwrite guards.
 - `tests/test_download_integration.py`: local HTTP download, audio muxing, verification, and cache reuse tests.
 - `tests/test_wizard.py`: folder ordering, optional merging, source selection, and access fallback tests.
+- `tests/test_watch.py`: live progress, completion, errors, interrupted monitoring, and job selection tests.
 
 Run the offline tests with:
 
@@ -255,11 +280,13 @@ For help on any command, append `--help`, for example `echo360_tool.py combine -
 Validated on 25 October 2026, Windows, Python 3.13, with the private environment created by `setup.ps1`.
 
 - Setup succeeded from a folder whose path includes spaces and Estonian characters. Dependencies: imageio-ffmpeg 0.6.0 and Pillow 12.2.0; bundled FFmpeg 7.1.
-- Sixteen automated tests passed. They cover duration parsing, highest-resolution playlist selection, relative URLs, rejecting encrypted/unsupported layouts, source IDs independent of array order, protecting input files, the HTTP download integration, and the interactive folder/merge/source-selection flow, including public-session fallback, preview announcements after acceptance, and plain-text redirected logs.
+- Twenty-two automated tests passed. They cover duration parsing, highest-resolution playlist selection, relative URLs, rejecting encrypted/unsupported layouts, source IDs independent of array order, protecting input files, the HTTP download integration, and the interactive folder/merge/source-selection flow, including public-session fallback, preview announcements after acceptance, and plain-text redirected logs. Monitor tests cover progress updates, success and failure reporting, dead workers, Ctrl+C without changing worker status, and latest-job selection.
 - The integration test generated two short video-only files and separate AAC audio, served them over local HTTP, downloaded and muxed both streams, verified playback, generated a contact sheet, and confirmed checksum-based reuse without another full transfer. Test media was temporary.
 - A real public Echo360 lesson was inspected using a fresh public course session. Both video playlists and the audio playlist resolved successfully. Small HTTP range requests returned valid MP4 headers for all three tracks. Evidence: `validation/public-session-check.json`. This check did not redownload the full lecture.
 - Two detached background jobs successfully combined existing real lecture files into three-second samples, one with the teacher large and one with the computer large. Both jobs reached `complete`, including packet reads and sample decoding. Both outputs contain H.264 video at 1760 × 720 and AAC audio.
 - The second background job used the toolkit's private Python environment. The launcher returned before encoding completed. CPU encoding was used for these tests so the pre-existing course encoding queue could continue using the GPU.
+- An additional eight-second CPU merge of real lecture sources ran with `--background --watch`. The monitor displayed encoding and verification stages and reported success after output checks passed; progress metadata was saved in `status.json`.
+- A sixty-second CPU sample verified that terminating the monitor process leaves the worker running. A second monitor showed percentage, speed, and ETA until verification completed successfully.
 - The generated `validation/layout-comparison.jpg` was visually reviewed: the selected large video is on the left, the small video is centered on the right, and neither overlaps the other.
 
 The toolkit's new batch orchestration was reviewed but a full multi-hour batch was not repeated. NVIDIA encoding uses the same established FFmpeg settings as the existing lecture queue; these toolkit sample tests specifically exercised the CPU path. No claim is made that every Echo360 deployment or player format is supported.
