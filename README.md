@@ -72,7 +72,7 @@ Follow these prompts in order:
 5. At **Download root folder**, press Enter for the toolkit's `downloads` folder, or enter an absolute path such as `C:\Videos\Echo360`. With the example names and default root, the destination is `downloads\Course\02`.
 6. If **Public course/section URL** appears, paste that course's public link. Visiting it establishes the viewing session needed by some lessons.
 7. Wait while every available source stream downloads at its highest listed resolution and receives the shared audio. **Keep this console open during this download stage.**
-8. At **Combine the downloaded streams into one video? [Y/n]**, press **Enter** or type **y** to merge. Type **n** to finish with separate MP4s.
+8. At **Combine the downloaded streams into one video? [Enter = yes, n = no]**, press **Enter** or type **y** to merge. Type **n** to finish with separate MP4s.
 9. If you chose **y**, the toolkit displays and opens `SOURCE_PREVIEWS.jpg`. Inspect the rows to identify the camera and computer screen. These are **input source previews**, not a preview of the final merged layout.
 10. At **Source ID for the LARGE video on the LEFT (1, 2)**, enter the ID you want large. The prompt lists the actual available IDs. With two streams, the other becomes small on the right automatically. With more than two, choose the small source from a second prompt.
 11. At **Encoder: auto, nvenc, or cpu [auto]**, press Enter for `auto`, or choose an encoder from the table below.
