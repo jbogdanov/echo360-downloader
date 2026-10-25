@@ -887,17 +887,12 @@ def choose_source(label, mapping):
 def choose_keyboard_option(title, options):
     """Choose inline without replacing the current console output."""
     cursor = 0
-    status_line(title)
-    controls = re.sub(r'(^| \| )([^:]+)(?=:)',
-                      lambda match: match[1] + colored(match[2], '94', sys.stdout),
-                      'Up/Down: move | Enter: choose | Q/Esc: cancel')
-    print(controls)
     print('\033[?25l', end='', flush=True)
     try:
         while True:
             choices = [colored(f'[{label}]', '92', sys.stdout) if index == cursor else label
                        for index, (label, _) in enumerate(options)]
-            print('\r\033[2K' + '  '.join(choices), end='', flush=True)
+            print('\r\033[2K' + title + ' ' + '  '.join(choices), end='', flush=True)
             key = read_windows_key()
             if key in ('up', 'left'):
                 cursor = (cursor - 1) % len(options)

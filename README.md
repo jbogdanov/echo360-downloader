@@ -90,16 +90,12 @@ If the lesson contains only one video stream, downloading completes without a me
 
 ### Choose an encoder
 
-Yes/No and encoder choices appear inline in the current console flow, keeping previous output visible. Use **Up / Down** (or **Left / Right**) to move the brackets and green highlight, then **Enter** to confirm. **Yes** and **Auto** are selected initially. Keyboard hints appear above the choices with blue key names and descriptions in the default color. **Q / Esc** cancels before starting a job. In consoles without keyboard navigation, the text prompts remain available: `[yes] no` accepts Enter for yes, and the encoder prompt accepts `auto`, `cpu`, or `nvenc`.
+Yes/No and encoder choices appear on the same line as their question or label, keeping previous output visible. Use **Up / Down** (or **Left / Right**) to move the brackets and green highlight, then **Enter** to confirm. **Yes** and **Auto** are selected initially. These short prompts have no keyboard-hint line. **Q / Esc** cancels before starting a job. In consoles without keyboard navigation, the text prompts remain available: `[yes] no` accepts Enter for yes, and the encoder prompt accepts `auto`, `cpu`, or `nvenc`.
 
 ```text
-Merge the downloaded streams into one video?
-Up/Down: move | Enter: choose | Q/Esc: cancel
-[Yes]  No
+Merge the downloaded streams into one video? [Yes]  No
 
-Encoder:
-Up/Down: move | Enter: choose | Q/Esc: cancel
-[Auto]  CPU  NVIDIA (NVENC)
+Encoder: [Auto]  CPU  NVIDIA (NVENC)
 ```
 
 | Choice | Behavior |

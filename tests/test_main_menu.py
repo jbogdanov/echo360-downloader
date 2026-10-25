@@ -82,7 +82,9 @@ class MainMenuTests(unittest.TestCase):
         self.assertIs(value, False)
         self.assertIn('[Yes]  No', output)
         self.assertIn('Yes  [No]', output)
-        self.assertEqual(output.count('Merge the downloaded streams into one video?'), 1)
+        self.assertIn('Merge the downloaded streams into one video? [Yes]  No', output)
+        self.assertIn('Merge the downloaded streams into one video? Yes  [No]', output)
+        self.assertEqual(output.count('\n'), 1)
 
     def test_encoder_arrows_map_labels_to_worker_values(self):
         for keys, expected in [(['enter'], 'auto'), (['down', 'enter'], 'cpu'),
@@ -107,7 +109,10 @@ class MainMenuTests(unittest.TestCase):
         self.assertIn('[Auto]  CPU  NVIDIA (NVENC)', output)
         self.assertIn('Auto  [CPU]  NVIDIA (NVENC)', output)
         self.assertEqual(output.count('\r\033[2K'), 3)
-        self.assertIn('Up/Down: move | Enter: choose | Q/Esc: cancel\n', output)
+        self.assertIn('Encoder: [Auto]  CPU  NVIDIA (NVENC)', output)
+        self.assertNotIn('Up/Down:', output)
+        self.assertNotIn('Q/Esc:', output)
+        self.assertEqual(output.count('\n'), 1)
 
 
 if __name__ == '__main__':
