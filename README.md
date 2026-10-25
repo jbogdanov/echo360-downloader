@@ -117,7 +117,7 @@ Use this after a course batch download, or whenever you already have both source
 6. Choose `auto`, `nvenc`, or `cpu`, or press Enter for `auto`.
 7. Watch the background merge's progress. When all checks pass, open the output MP4 in your video player.
 
-Use **Backspace** or the **[..] Parent folder** row to go up, **Page Up / Page Down** to scroll, and **Home / End** to jump to the first / last entry. Press **P** to paste a folder or video path, including a path on another drive; quotes copied from File Explorer are accepted. **Q / Esc** cancels without starting a merge. The browser shows folders and common video formats, including MP4, MKV, MOV, and WebM.
+Keyboard controls stay in a footer at the bottom of the file browser. Use **Backspace** or the **[..] Parent folder** row to go up, **Page Up / Page Down** to scroll, and **Home / End** to jump to the first / last entry. Press **P** to paste a folder or video path, including a path on another drive; quotes copied from File Explorer are accepted. **Q / Esc** cancels without starting a merge. The browser shows folders and common video formats, including MP4, MKV, MOV, and WebM.
 
 The result is saved beside the large input. Downloaded `source_<ID>.mp4` files use their IDs in the output name; other filenames use their stems, such as `combined_large-teacher_small-slides.mp4`. Inputs and output must be different files; an existing final output is not overwritten. To reverse the layout, run option 2 again with the videos swapped; the output name follows that order.
 
