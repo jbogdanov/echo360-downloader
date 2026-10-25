@@ -40,7 +40,7 @@ class DownloadIntegration(unittest.TestCase):
                 with patch.object(tool, 'player', return_value=(urllib.request.build_opener(), video)):
                     folder, manifest = tool.download('https://example.org/lesson/test/classroom', name='HTTP test', output_root=root/'outputs')
                     self.assertEqual(len(manifest['streams']), 2)
-                    self.assertTrue((folder/'STREAM_PREVIEW.jpg').exists())
+                    self.assertTrue((folder/'SOURCE_PREVIEWS.jpg').exists())
                     for row in manifest['streams']:
                         self.assertTrue(row['audio'])
                         self.assertEqual(row['sha256'], tool.digest(folder/row['file']))

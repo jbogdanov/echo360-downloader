@@ -14,6 +14,7 @@ import time
 import traceback
 import urllib.parse
 import urllib.request
+import urllib.error
 import uuid
 
 import imageio_ffmpeg
@@ -21,6 +22,16 @@ import imageio_ffmpeg
 HOME = Path(__file__).resolve().parent
 FF = imageio_ffmpeg.get_ffmpeg_exe()
 NO_WINDOW = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+BANNER = r'''
+   _____ ____ _   _  ___  _____   __    ___
+  | ____/ ___| | | |/ _ \|___ /  / /_  / _ \
+  |  _|| |   | |_| | | | | |_ \ | '_ \| | | |
+  | |__| |___|  _  | |_| |___) || (_) | |_| |
+  |_____\____|_| |_|\___/|____/  \___/ \___/
+
+                 R I P P E R
+       Download. Preview. Choose. Combine.
+'''
 for stream in (sys.stdout, sys.stderr):
     if hasattr(stream, 'reconfigure'):
         stream.reconfigure(encoding='utf-8', errors='replace')
@@ -96,6 +107,10 @@ def request_text(opener, url):
         return response.read().decode('utf-8')
 
 
+class PublicAccessRequired(RuntimeError):
+    """The lesson may need a public course session before it can be opened."""
+
+
 def player(lesson_url, course_url=None):
     parsed = urllib.parse.urlparse(lesson_url)
     if parsed.scheme != 'https' or '/lesson/' not in parsed.path:
@@ -106,10 +121,15 @@ def player(lesson_url, course_url=None):
         if urllib.parse.urlparse(course_url).scheme != 'https':
             raise ValueError('The public course URL must use HTTPS.')
         request_text(opener, course_url)
-    html = request_text(opener, lesson_url)
+    try:
+        html = request_text(opener, lesson_url)
+    except urllib.error.HTTPError as exc:
+        if exc.code in (401, 403):
+            raise PublicAccessRequired('The lesson requires a viewing session. Supply its public course/section URL.') from exc
+        raise
     match = re.search(r'Echo\["echoPlayerV2FullApp"\]\(("(?:\\.|[^"\\])*")', html)
     if not match:
-        raise RuntimeError('Public player configuration not found. Open the lesson in your browser, copy its full classroom URL, and supply its public course/section URL. Login-only pages and changed player formats are not supported.')
+        raise PublicAccessRequired('Public player configuration not found. Open the lesson in your browser, copy its full classroom URL, and supply its public course/section URL. Login-only pages and changed player formats are not supported.')
     data = json.loads(json.loads(match[1]))
     if not data.get('video', {}).get('playableMedias'):
         raise RuntimeError('This page has no downloadable playable video metadata.')
@@ -296,16 +316,19 @@ def _download(lesson_url, course_url=None, name=None, output_root=None):
         raw.unlink(missing_ok=True)
         print(f'READY source {index}: {info["resolution"]}', flush=True)
     audio_path.unlink(missing_ok=True)
-    preview_files([(f'Source {r["source_id"]}', folder / r['file']) for r in manifest['streams']], folder / 'STREAM_PREVIEW.jpg')
+    preview_files([(f'Source {r["source_id"]}', folder / r['file']) for r in manifest['streams']],
+                  folder / 'SOURCE_PREVIEWS.jpg', title='SOURCE STREAM PREVIEWS - separate inputs, not the merged output')
     return folder, manifest
 
 
-def preview_files(items, output):
-    from PIL import Image, ImageDraw
+def preview_files(items, output, title='INPUT VIDEO PREVIEWS - separate inputs, not the merged output'):
+    from PIL import Image, ImageDraw, ImageFont
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    sheet = Image.new('RGB', (1440, 300*len(items)), '#202020')
+    header = 42
+    sheet = Image.new('RGB', (1440, header+300*len(items)), '#202020')
     draw = ImageDraw.Draw(sheet)
+    draw.text((10, 10), title, fill='white', font=ImageFont.load_default(size=18))
     for row, (label, path) in enumerate(items):
         seconds = inspect(path)['seconds']
         positions = [min(120, seconds*.1), seconds*.5, seconds*.9]
@@ -314,11 +337,11 @@ def preview_files(items, output):
             ff_run(['-v', 'error', '-threads', '2', '-ss', str(position), '-i', str(path), '-frames:v', '1',
                     '-vf', 'scale=480:270:force_original_aspect_ratio=decrease,pad=480:270:(ow-iw)/2:(oh-ih)/2', '-y', str(frame)])
             with Image.open(frame) as image:
-                sheet.paste(image.convert('RGB'), (col*480, row*300+30))
+                sheet.paste(image.convert('RGB'), (col*480, header+row*300+30))
             frame.unlink()
-            draw.text((col*480+8, row*300+8), f'{label} | {position:.0f} seconds', fill='white')
+            draw.text((col*480+8, header+row*300+8), f'{label} | {position:.0f} seconds', fill='white')
     sheet.save(output, quality=90)
-    print(f'Preview: {output}', flush=True)
+    print(f'Input source previews (not the merged output): {output}', flush=True)
     return output
 
 
@@ -493,15 +516,40 @@ def prompt_path(label):
 
 
 def choose_source(label, mapping):
+    choices = ', '.join(str(index) for index in sorted(mapping))
     while True:
-        answer = input(label).strip()
+        answer = input(f'{label} ({choices}): ').strip()
         if answer.isdigit() and int(answer) in mapping:
             return int(answer)
         print(f'Enter one of: {list(mapping)}')
 
 
+def confirm_merge():
+    while True:
+        answer = input('Combine the downloaded streams into one video? [y/N]: ').strip().lower()
+        if answer in ('y', 'yes'):
+            return True
+        if answer in ('', 'n', 'no'):
+            return False
+        print('Enter y or n.')
+
+
+def wizard_download(lesson, name, output_root):
+    try:
+        return download(lesson, name=name, output_root=output_root)
+    except (PublicAccessRequired, urllib.error.HTTPError) as exc:
+        if isinstance(exc, urllib.error.HTTPError) and exc.code not in (401, 403):
+            raise
+        print('The lesson could not be accessed directly. Its public course link may establish the required viewing session.')
+        course = input('Public course/section URL: ').strip()
+        if not course:
+            raise PublicAccessRequired('No course URL supplied. Open the public course in your browser and copy its URL.') from exc
+        return download(lesson, course_url=course, name=name, output_root=output_root)
+
+
 def wizard():
-    print('\nEcho360 Offline Toolkit — runs locally, no AI required.\n1. Download a lesson, review streams, then combine\n2. Combine two existing local video files\n3. Run a batch JSON file in the background\n')
+    print(BANNER)
+    print('1. Download a lesson (optional merge)\n2. Combine two existing local video files\n3. Run a batch JSON file in the background\n')
     mode = input('Choose 1, 2, or 3 [1]: ').strip() or '1'
     if mode == '3':
         config = read_json(prompt_path('Batch JSON path: '))
@@ -509,21 +557,28 @@ def wizard():
         return
     if mode == '1':
         lesson = input('Specific lesson/classroom URL: ').strip()
-        course = input('Public course/section URL (recommended; Enter to skip): ').strip() or None
-        name = input('Folder name (Enter for automatic date + ID): ').strip() or None
-        output_root = input(f'Download parent folder [Enter: {HOME / "downloads"}]: ').strip().strip('"') or None
-        folder, manifest = download(lesson, course, name, output_root)
+        course_name = slug(input('Course folder name [Echo360]: ').strip() or 'Echo360')
+        name = input('Video subfolder name (Enter for automatic date + ID): ').strip() or None
+        parent = input(f'Download root folder [Enter: {HOME / "downloads"}]: ').strip().strip('"')
+        output_root = (Path(parent).expanduser().resolve() if parent else HOME / 'downloads') / course_name
+        folder, manifest = wizard_download(lesson, name, output_root)
         mapping = {r['source_id']: str(folder / r['file']) for r in manifest['streams']}
-        preview = folder / 'STREAM_PREVIEW.jpg'
-        print('Open the preview or individual MP4s to identify the lecturer and screen. Source IDs are not role labels.')
-        if os.name == 'nt':
-            try: os.startfile(preview)
-            except OSError: pass
         if len(mapping) < 2:
             print('Only one stream is available. Download is complete; there is no second stream to combine.')
             return
-        big = choose_source('Source ID for the LARGE video on the LEFT: ', mapping)
-        small = choose_source('Source ID for the SMALL video on the RIGHT: ', {k:v for k,v in mapping.items() if k != big})
+        if not confirm_merge():
+            print(f'Download complete. Source videos and SOURCE_PREVIEWS.jpg are saved in: {folder}')
+            return
+        preview = folder / 'SOURCE_PREVIEWS.jpg'
+        print('SOURCE_PREVIEWS.jpg shows the separate source streams, not the final merged layout.')
+        print('Use these input previews or the source MP4s to identify the lecturer and screen. Source IDs are not role labels.')
+        if os.name == 'nt':
+            try: os.startfile(preview)
+            except OSError: pass
+        big = choose_source('Source ID for the LARGE video on the LEFT', mapping)
+        remaining = {k:v for k,v in mapping.items() if k != big}
+        small = next(iter(remaining)) if len(remaining) == 1 else choose_source('Source ID for the SMALL video on the RIGHT', remaining)
+        print(f'Layout: source {big} large / left; source {small} small / right.')
         large_path, small_path = mapping[big], mapping[small]
         output = str(folder / f'combined_large-{big}_small-{small}.mp4')
     elif mode == '2':
@@ -536,7 +591,7 @@ def wizard():
     if encoder not in ('auto', 'nvenc', 'cpu'):
         raise ValueError('Encoder must be auto, nvenc, or cpu.')
     start_background({'type': 'combine', 'options': dict(large=large_path, small=small_path, output=output, encoder=encoder)})
-    print('You can close this console. Leave the computer on; the background job needs no AI tokens.')
+    print('You can close this console. Leave the computer on while the background job runs.')
 
 
 def main():

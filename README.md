@@ -7,13 +7,13 @@ This project was fully created with Codex GPT-6 Astra.
 ## Quick start on this computer
 
 1. Open this toolkit folder and double-click **`START.cmd`**.
-2. Choose **1 — Download a lesson, review streams, then combine**.
+2. Choose **1 — Download a lesson (optional merge)** in the Echo360 Ripper menu.
 3. Paste the URL of the **specific lesson**. In Echo360, open the recording and copy the full classroom URL from the address bar.
-4. Paste the course's **public section URL** when prompted. This establishes the public viewing session that some recordings require.
-5. Enter an optional folder name, such as `Week 05 - Cloud Architecture`. Press Enter for the automatic name. Choose a download parent folder or press Enter for this toolkit's `downloads` folder.
-6. The script downloads every available video stream at its highest listed resolution and adds the lecture's shared audio to each MP4. Leave this console open during downloading.
-7. `STREAM_PREVIEW.jpg` opens automatically on Windows. Each row is one source, with frames near the beginning, middle, and end. You can also play the individual `source_1.mp4`, `source_2.mp4`, etc.
-8. Enter the source ID that should be **large on the left**, then the distinct source ID that should be **small on the right**.
+4. Enter the **course folder name** first, such as `DevOps`, then the **video subfolder name**, such as `02`. Press Enter at the video prompt for an automatic date/ID name.
+5. Choose the download root folder or press Enter for this toolkit's `downloads` directory. For the example above, files go to `downloads/DevOps/02`.
+6. The script tries the lesson link directly. **Only if access fails**, it asks for the course's public section URL to establish a viewing session. It then downloads every available video stream at its highest listed resolution and adds the shared audio to each MP4. Leave this console open during downloading.
+7. After downloading, answer **y** to combine the streams, or **n / Enter** to keep the separate videos without encoding.
+8. If you choose to combine, `SOURCE_PREVIEWS.jpg` opens on Windows. **This shows the separate input streams, not the merged output or its layout.** Each row is one source, with frames near the beginning, middle, and end. Enter the source ID that should be **large on the left**; available IDs appear in the prompt, for example `(1, 2)`. With two streams, the other ID is automatically used **small on the right**. If more than two streams exist, a second choice identifies which remaining stream to use.
 9. Press Enter for the `auto` encoder. The script starts a detached background process and prints its status/log paths. You can now close the console.
 
 The result is named, for example, `combined_large-2_small-1.mp4` and is saved beside the downloaded source files. The originals remain available.
@@ -48,7 +48,7 @@ Two links may be needed:
 
 Copy the complete lesson URL from the browser. Some lesson IDs contain long date/time strings; keep the entire URL, including any query string. Do not invent a lesson ID from a date.
 
-The downloader opens the public course and lesson in the **same HTTP session**, then reads the player metadata and resolves the highest-resolution playlist. It supports the unencrypted, single-MP4 byte-range HLS format verified on the supplied Echo360 UK courses, plus directly exposed MP4 tracks. It downloads the referenced MP4 rather than recording your screen.
+The wizard first tries the lesson URL alone. Some recordings require a public viewing session established by visiting their course page, so the wizard asks for that link only when direct access fails. When a course URL is supplied, the downloader opens the course and lesson in the **same HTTP session**, then reads the player metadata and resolves the highest-resolution playlist. The command-line `--course` option remains available when you already know that link is needed. The downloader supports the unencrypted, single-MP4 byte-range HLS format verified on the supplied Echo360 UK courses, plus directly exposed MP4 tracks. It downloads the referenced MP4 rather than recording your screen.
 
 This is a purpose-built downloader, not a universal Echo360 client. Login-only institutional pages, DRM/encrypted streams, unrelated player formats, and HLS with separate media files are not implemented. The script reports these cases explicitly. It does not import browser cookies or store your account password. Echo360 changes to its player format may require a script update.
 
@@ -108,11 +108,13 @@ Running the same download again reuses completed streams only when their saved s
 
 ### Create a visual comparison of local files
 
+This command creates a contact sheet of the separate input files. It does not preview the merged layout. To see the actual layout, encode a short trial with `combine --seconds 20` as shown below.
+
 ```powershell
 .\.venv\Scripts\python.exe .\echo360_tool.py preview `
   "C:\Videos\Echo360\Lecture 05\source_1.mp4" `
   "C:\Videos\Echo360\Lecture 05\source_2.mp4" `
-  --output "C:\Videos\Echo360\Lecture 05\comparison.jpg"
+  --output "C:\Videos\Echo360\Lecture 05\SOURCE_PREVIEWS.jpg"
 ```
 
 ### Teacher large, computer small
@@ -222,6 +224,7 @@ On Windows, the toolkit requests **Always keep on this device** using `attrib +P
 - `RUN_BATCH.cmd`, `examples/batch.example.json`: unattended batch workflow.
 - `tests/test_toolkit.py`: offline regression tests for playlist handling, source IDs, and overwrite guards.
 - `tests/test_download_integration.py`: local HTTP download, audio muxing, verification, and cache reuse tests.
+- `tests/test_wizard.py`: folder ordering, optional merging, source selection, and access fallback tests.
 
 Run the offline tests with:
 
@@ -236,7 +239,7 @@ For help on any command, append `--help`, for example `echo360_tool.py combine -
 Validated on 25 October 2026, Windows, Python 3.13, with the private environment created by `setup.ps1`.
 
 - Setup succeeded from a folder whose path includes spaces and Estonian characters. Dependencies: imageio-ffmpeg 0.6.0 and Pillow 12.2.0; bundled FFmpeg 7.1.
-- Seven automated tests passed. They cover duration parsing, highest-resolution playlist selection, relative URLs, rejecting encrypted/unsupported layouts, source IDs independent of array order, protecting input files, and an HTTP download integration test.
+- Fourteen automated tests passed. They cover duration parsing, highest-resolution playlist selection, relative URLs, rejecting encrypted/unsupported layouts, source IDs independent of array order, protecting input files, the HTTP download integration, and the interactive folder/merge/source-selection flow, including public-session fallback and source-preview naming.
 - The integration test generated two short video-only files and separate AAC audio, served them over local HTTP, downloaded and muxed both streams, verified playback, generated a contact sheet, and confirmed checksum-based reuse without another full transfer. Test media was temporary.
 - A real public Echo360 lesson was inspected using a fresh public course session. Both video playlists and the audio playlist resolved successfully. Small HTTP range requests returned valid MP4 headers for all three tracks. Evidence: `validation/public-session-check.json`. This check did not redownload the full lecture.
 - Two detached background jobs successfully combined existing real lecture files into three-second samples, one with the teacher large and one with the computer large. Both jobs reached `complete`, including packet reads and sample decoding. Both outputs contain H.264 video at 1760 × 720 and AAC audio.
