@@ -1,5 +1,16 @@
 # echo360-downloader
 
+```text
+   _____ ____ _   _  ___  _____   __    ___
+  | ____/ ___| | | |/ _ \|___ /  / /_  / _ \
+  |  _|| |   | |_| | | | | |_ \ | '_ \| | | |
+  | |__| |___|  _  | |_| |___) || (_) | |_| |
+  |_____\____|_| |_|\___/|____/  \___/ \___/
+
+                 R I P P E R
+       Download. Preview. Choose. Combine.
+```
+
 Download public Echo360 lectures for offline viewing. Choose a single lesson or select several lessons from a course, then optionally combine two video streams into one MP4 with a large video on the left and a smaller video on the right.
 
 This project was fully created with Codex GPT-6 Astra.
