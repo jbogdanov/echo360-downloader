@@ -4,10 +4,23 @@ import os
 import re
 import shutil
 import sys
+import textwrap
 
 from course_picker import windows_terminal, read_windows_key
 
 VIDEO_EXTENSIONS = {'.mp4', '.mkv', '.mov', '.avi', '.webm', '.m4v', '.ts', '.mts', '.m2ts', '.wmv'}
+
+
+def navigation_lines(width):
+    controls = ['Up/Down: move', 'Enter: open/select', 'Backspace: parent',
+                'P: paste path', 'Q/Esc: cancel', 'PgUp/PgDn: page']
+    rows = []
+    for control in controls:
+        if rows and len(rows[-1]) + 3 + len(control) <= width:
+            rows[-1] += ' | ' + control
+        else:
+            rows.extend(textwrap.wrap(control, width=max(1, width)))
+    return rows
 
 
 def video_entries(folder, excluded=None):
@@ -57,7 +70,10 @@ def choose_video(title, start, excluded=None):
             message = str(error)
         while True:
             columns, lines = shutil.get_terminal_size((100, 25))
-            width, page_size = max(1, columns - 1), max(1, lines - 8)
+            width = max(1, columns - 1)
+            controls = navigation_lines(width)
+            footer_size = 1 + len(controls)
+            page_size = max(1, lines - 6 - footer_size)
             first = cursor // page_size * page_size
             rows = [f'ECHO360 RIPPER - Choose {title} video', '-' * width, str(folder), '',
                     message or 'Folders and video files only. Enter chooses the highlighted video.', '']
@@ -68,15 +84,15 @@ def choose_video(title, start, excluded=None):
                 rows.append(f'{">" if index == cursor else " "} {label}')
             if not entries:
                 rows.append('(No video files or folders here)')
-            rows.extend([''] * max(0, lines - 2 - len(rows)))
-            rows.extend(['-' * width,
-                         'Up/Down: move | Enter: open/select | Backspace: parent | P: paste folder/file path (any drive) | Q/Esc: cancel | PgUp/PgDn: page'])
+            rows.extend([''] * max(0, lines - footer_size - len(rows)))
+            rows.extend(['-' * width, *controls])
             clean = lambda text: re.sub(r'[\x00-\x1f\x7f]', '', text)[:width]
             rows = [clean(row) for row in rows]
             if 'NO_COLOR' not in os.environ:
                 rows[0] = f'\033[1;36m{rows[0]}\033[0m'
-                rows[-1] = re.sub(r'(^| \| )([^:]+)(?=:)',
-                                  lambda match: f'{match[1]}\033[94m{match[2]}\033[0m', rows[-1])
+                for index in range(len(rows) - len(controls), len(rows)):
+                    rows[index] = re.sub(r'(^| \| )([^:]+)(?=:)',
+                                         lambda match: f'{match[1]}\033[94m{match[2]}\033[0m', rows[index])
                 if selected_row is not None:
                     rows[selected_row] = f'\033[92m{rows[selected_row]}\033[0m'
             print('\033[H\033[2J' + '\n'.join(rows), end='', flush=True)

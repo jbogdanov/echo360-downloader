@@ -1,5 +1,7 @@
 """Local file navigation, cancellation, and merge-wizard integration."""
 import io
+import os
+import re
 from pathlib import Path
 import sys
 import tempfile
@@ -43,6 +45,25 @@ class FilePickerTests(unittest.TestCase):
         result, _ = self.browse(['backspace', 'end', 'enter', 'pagedown', 'pageup',
                                  'home', 'down', 'enter'], start=self.lesson)
         self.assertEqual(result, str(self.small))
+
+    def test_footer_keeps_all_shortcuts_visible_when_window_resizes(self):
+        widths = (120, 100, 80, 40)
+        with patch.object(picker.shutil, 'get_terminal_size',
+                          side_effect=[os.terminal_size((width, 25)) for width in widths]):
+            _, output = self.browse(['', '', '', 'q'])
+        screens = output.split('\033[H\033[2J')[1:]
+        self.assertEqual(len(screens), len(widths))
+        for width, screen in zip(widths, screens):
+            with self.subTest(width=width):
+                rows = re.sub(r'\x1b\[[0-9;?]*[A-Za-z]', '', screen).splitlines()
+                self.assertEqual(len(rows), 25)
+                self.assertTrue(all(len(row) < width for row in rows))
+                footer = '\n'.join(rows[rows.index('-' * (width - 1), 2) + 1:])
+                for control in ('Up/Down: move', 'Enter: open/select', 'Backspace: parent',
+                                'P: paste path', 'Q/Esc: cancel', 'PgUp/PgDn: page'):
+                    self.assertIn(control, footer)
+                if width == 120:
+                    self.assertEqual(len(footer.splitlines()), 1)
 
     def test_filters_nonvideos_and_excludes_large_source(self):
         (self.lesson / 'manifest.json').touch()
