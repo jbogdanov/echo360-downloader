@@ -179,7 +179,7 @@ def read_windows_key():
     key = msvcrt.getwch()
     if key in ('\x00', '\xe0'):
         return {'H': 'up', 'P': 'down', 'I': 'pageup', 'Q': 'pagedown', 'G': 'home', 'O': 'end'}.get(msvcrt.getwch(), '')
-    return {' ': 'space', '\r': 'enter', '\x1b': 'escape', '\x03': 'interrupt'}.get(key, key.lower())
+    return {' ': 'space', '\r': 'enter', '\x08': 'backspace', '\x1b': 'escape', '\x03': 'interrupt'}.get(key, key.lower())
 
 
 def choose_lessons(lessons):

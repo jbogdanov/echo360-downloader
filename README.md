@@ -22,7 +22,7 @@ This project was fully created with Codex GPT-6 Astra.
 You need Windows 10 or 11, Python **3.10 or newer**, an internet connection for setup and downloads, and enough disk space for the source videos and merged output. An NVIDIA GPU is optional; CPU encoding is supported.
 
 1. Download or clone this repository into a folder where you want to keep the toolkit.
-2. Keep the repository files together, including `echo360_tool.py`, `course_picker.py`, the `.cmd` launchers, `setup.ps1`, and `requirements.txt`.
+2. Keep the repository files together, including `echo360_tool.py`, `course_picker.py`, `file_picker.py`, the `.cmd` launchers, `setup.ps1`, and `requirements.txt`.
 3. Double-click **`SETUP.cmd`** and wait for **Setup complete**. This creates a private `.venv` and installs the dependencies, including FFmpeg. You do not need a separate FFmpeg installation or administrator privileges.
 4. Double-click **`START.cmd`** to open Echo360 Ripper. If setup has already been completed on this computer, start here.
 
@@ -111,15 +111,17 @@ Use this after a course batch download, or whenever you already have both source
 
 1. Open the lesson folder and play both source MP4s to decide which picture should be large. You can also create a comparison image using the advanced `preview` command below.
 2. Open `START.cmd` and choose **2**.
-3. At **LARGE / LEFT video path**, paste the full path to the large source, for example `C:\Videos\Echo360\Course\02\source_2.mp4`.
-4. At **SMALL / RIGHT video path**, paste the full path to the other source, such as `C:\Videos\Echo360\Course\02\source_1.mp4`.
-5. The output path is generated automatically and displayed. With the example inputs above, it is `C:\Videos\Echo360\Course\02\combined_large-2_small-1.mp4`, just like option 1.
+3. The **LARGE / LEFT** file browser opens in the project's `downloads` folder. Use **Up / Down** to move the `>` marker and **Enter** to open a folder or select a video, such as `Course\02\source_2.mp4`. If `downloads` does not exist yet, the browser starts in the project folder.
+4. The **SMALL / RIGHT** browser opens in the large video's folder. Choose the other source, such as `source_1.mp4`. The already selected large video is hidden from this list.
+5. The output path is generated automatically and displayed. With these sources, it is `combined_large-2_small-1.mp4` in the same lesson folder, just like option 1.
 6. Choose `auto`, `nvenc`, or `cpu`, or press Enter for `auto`.
 7. Watch the background merge's progress. When all checks pass, open the output MP4 in your video player.
 
-Paths copied with quotes from File Explorer are accepted. The result is saved beside the large input. Downloaded `source_<ID>.mp4` files use their IDs in the output name; other filenames use their stems, such as `combined_large-teacher_small-slides.mp4`. Inputs and output must be different files; an existing final output is not overwritten. To reverse the layout, run option 2 again with the input paths swapped; the output name follows that order.
+Use **Backspace** or the **[..] Parent folder** row to go up, **Page Up / Page Down** to scroll, and **Home / End** to jump to the first / last entry. Press **P** to paste a folder or video path, including a path on another drive; quotes copied from File Explorer are accepted. **Q / Esc** cancels without starting a merge. The browser shows folders and common video formats, including MP4, MKV, MOV, and WebM.
 
-Option 2 asks for **file paths**, not source IDs, and does not automatically open a preview. To generate a comparison image for other local files, use the advanced `preview` command below.
+The result is saved beside the large input. Downloaded `source_<ID>.mp4` files use their IDs in the output name; other filenames use their stems, such as `combined_large-teacher_small-slides.mp4`. Inputs and output must be different files; an existing final output is not overwritten. To reverse the layout, run option 2 again with the videos swapped; the output name follows that order.
+
+If the console cannot support keyboard navigation, option 2 asks you to paste both video paths instead. It does not automatically open a preview. To generate a comparison image for local files, use the advanced `preview` command below.
 
 ## Option 3: Select course lessons and batch download
 
@@ -390,6 +392,7 @@ Login-only institutional pages, DRM/encrypted streams, and HLS with separate med
 | `RUN_BATCH.cmd` | Run a saved batch dropped onto the launcher |
 | `echo360_tool.py` | Downloader, previews, merging, wizard, and background worker |
 | `course_picker.py` | Public course discovery and console checklist |
+| `file_picker.py` | Console file browser for local merge inputs |
 | `examples/batch.example.json` | Editable download-and-merge batch example |
 | `tests/` | Offline tests for downloading, selection, merging guards, and monitoring |
 
@@ -397,7 +400,7 @@ Login-only institutional pages, DRM/encrypted streams, and HLS with separate med
 
 Validation recorded on **25 October 2026**, on Windows with Python 3.13, imageio-ffmpeg 0.6.0, Pillow 12.2.0, and bundled FFmpeg 7.1:
 
-- **58 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, main-menu keyboard navigation and terminal restoration, wizard prompts and automatic output naming, course discovery/selection and shared batch layouts without previews, batch failure handling, live monitoring, lock cleanup with concurrent processes, and completed-job cleanup.
+- **67 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, main-menu and file-browser navigation, terminal restoration, wizard prompts and automatic output naming, course discovery/selection and shared batch layouts without previews, batch failure handling, live monitoring, lock cleanup with concurrent processes, and completed-job cleanup.
 - Local HTTP integration downloaded two streams plus shared audio, muxed and verified the outputs, created source previews, and checked checksum-based reuse. A two-lesson download batch also completed successfully.
 - All eight source MP4s checked across four downloaded lessons contained AAC audio. Ten-second samples starting one minute into each file decoded with non-silent audio; this was a sample check, not a full listening review.
 - Metadata discovery succeeded for all four supplied public courses. The Windows checklist was exercised in a real console using Space/X, arrows, Page Down, and Enter.

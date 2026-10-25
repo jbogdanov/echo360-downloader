@@ -20,6 +20,7 @@ import uuid
 
 import imageio_ffmpeg
 from course_picker import load_course, choose_lessons, lesson_label, windows_terminal, read_windows_key
+from file_picker import choose_video
 
 HOME = Path(__file__).resolve().parent
 FF = imageio_ffmpeg.get_ffmpeg_exe()
@@ -1034,8 +1035,14 @@ def wizard():
         large_path, small_path = mapping[big], mapping[small]
         output = str(folder / f'combined_large-{big}_small-{small}.mp4')
     elif mode == '2':
-        large_path = prompt_path('LARGE / LEFT video path: ')
-        small_path = prompt_path('SMALL / RIGHT video path: ')
+        large_path = choose_video('LARGE / LEFT', HOME / 'downloads')
+        if large_path is None:
+            return 0
+        status_line(f'Large / left: {large_path}')
+        small_path = choose_video('SMALL / RIGHT', Path(large_path).parent, excluded=large_path)
+        if small_path is None:
+            return 0
+        status_line(f'Small / right: {small_path}')
         output = str(local_merge_output(large_path, small_path))
     else:
         raise ValueError('Choose 1, 2, 3, or 4.')
