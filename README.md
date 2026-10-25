@@ -90,7 +90,17 @@ If the lesson contains only one video stream, downloading completes without a me
 
 ### Choose an encoder
 
-Yes/No and encoder selectors use arrow keys and Enter, with the current choice highlighted in green and keyboard controls in a bottom footer. Key names are blue; descriptions use the default color. **Q / Esc** cancels before starting a job. In consoles without keyboard navigation, the text prompts remain available: `[yes] no` accepts Enter for yes, and the encoder prompt accepts `auto`, `cpu`, or `nvenc`.
+Yes/No and encoder choices appear inline in the current console flow, keeping previous output visible. Use **Up / Down** (or **Left / Right**) to move the brackets and green highlight, then **Enter** to confirm. **Yes** and **Auto** are selected initially. Keyboard hints appear above the choices with blue key names and descriptions in the default color. **Q / Esc** cancels before starting a job. In consoles without keyboard navigation, the text prompts remain available: `[yes] no` accepts Enter for yes, and the encoder prompt accepts `auto`, `cpu`, or `nvenc`.
+
+```text
+Merge the downloaded streams into one video?
+Up/Down: move | Enter: choose | Q/Esc: cancel
+[Yes]  No
+
+Encoder:
+Up/Down: move | Enter: choose | Q/Esc: cancel
+[Auto]  CPU  NVIDIA (NVENC)
+```
 
 | Choice | Behavior |
 |---|---|
@@ -99,8 +109,6 @@ Yes/No and encoder selectors use arrow keys and Enter, with the current choice h
 | `cpu` | Works without an NVIDIA GPU; encoding is usually slower. |
 
 A failure after encoding starts is reported rather than automatically restarted with another encoder.
-
-![Encoder selection with Auto selected, plus CPU and NVIDIA options](docs/screenshots/encoder-selection.jpg)
 
 ## Option 2: Merge two local videos
 

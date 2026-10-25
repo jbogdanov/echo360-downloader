@@ -71,15 +71,18 @@ class MainMenuTests(unittest.TestCase):
                 patch('sys.stdout', new_callable=io.StringIO) as output:
             value = prompt()
         typed.assert_not_called()
-        self.assertIn('\033[?25h\033[?1049l', output.getvalue())
+        self.assertIn('\033[?25h', output.getvalue())
+        self.assertNotIn('\033[?1049', output.getvalue())
+        self.assertNotIn('\033[2J', output.getvalue())
         return value, output.getvalue()
 
     def test_merge_arrows_default_yes_and_choose_no(self):
         self.assertIs(self.choose_prompt(tool.confirm_merge, ['enter'])[0], True)
         value, output = self.choose_prompt(tool.confirm_merge, ['right', 'enter'])
         self.assertIs(value, False)
-        self.assertIn('> [No]', output)
-        self.assertIn('Merge the downloaded streams into one video? No', output)
+        self.assertIn('[Yes]  No', output)
+        self.assertIn('Yes  [No]', output)
+        self.assertEqual(output.count('Merge the downloaded streams into one video?'), 1)
 
     def test_encoder_arrows_map_labels_to_worker_values(self):
         for keys, expected in [(['enter'], 'auto'), (['down', 'enter'], 'cpu'),
@@ -96,14 +99,15 @@ class MainMenuTests(unittest.TestCase):
                     patch('sys.stdout', new_callable=io.StringIO) as output:
                 with self.assertRaises(KeyboardInterrupt):
                     tool.choose_encoder()
-            self.assertTrue(output.getvalue().endswith('\033[?25h\033[?1049l'))
+            self.assertTrue(output.getvalue().endswith('\033[?25h\n'))
 
-    def test_choice_controls_are_in_bottom_footer(self):
-        _, output = self.choose_prompt(tool.confirm_merge, ['enter'])
-        screen = output.split('\033[H\033[2J', 1)[1].split('\033[?25h', 1)[0]
-        rows = screen.splitlines()
-        self.assertIn('> [Yes]', screen)
-        self.assertEqual(rows[-1], 'Arrow keys: move | Enter: choose | Q/Esc: cancel')
+    def test_choice_redraws_only_its_inline_row(self):
+        value, output = self.choose_prompt(tool.choose_encoder, ['down', 'up', 'enter'])
+        self.assertEqual(value, 'auto')
+        self.assertIn('[Auto]  CPU  NVIDIA (NVENC)', output)
+        self.assertIn('Auto  [CPU]  NVIDIA (NVENC)', output)
+        self.assertEqual(output.count('\r\033[2K'), 3)
+        self.assertIn('Up/Down: move | Enter: choose | Q/Esc: cancel\n', output)
 
 
 if __name__ == '__main__':

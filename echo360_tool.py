@@ -885,23 +885,19 @@ def choose_source(label, mapping):
 
 
 def choose_keyboard_option(title, options):
-    """Choose one (label, value) pair; the first option is the default."""
+    """Choose inline without replacing the current console output."""
     cursor = 0
-    print('\033[?1049h\033[?25l', end='', flush=True)
+    status_line(title)
+    controls = re.sub(r'(^| \| )([^:]+)(?=:)',
+                      lambda match: match[1] + colored(match[2], '94', sys.stdout),
+                      'Up/Down: move | Enter: choose | Q/Esc: cancel')
+    print(controls)
+    print('\033[?25l', end='', flush=True)
     try:
         while True:
-            columns, lines = shutil.get_terminal_size((100, 25))
-            width = max(1, columns - 1)
-            rows = [colored('ECHO360 RIPPER'[:width], '36', sys.stdout), '-' * width, title[:width], '']
-            for index, (label, _) in enumerate(options):
-                line = (f'> [{label}]' if index == cursor else f'  {label}')[:width]
-                rows.append(colored(line, '92', sys.stdout) if index == cursor else line)
-            rows.extend([''] * max(0, lines - 2 - len(rows)))
-            controls = re.sub(r'(^| \| )([^:]+)(?=:)',
-                              lambda match: match[1] + colored(match[2], '94', sys.stdout),
-                              'Arrow keys: move | Enter: choose | Q/Esc: cancel'[:width])
-            rows.extend(['-' * width, controls])
-            print('\033[H\033[2J' + '\n'.join(rows), end='', flush=True)
+            choices = [colored(f'[{label}]', '92', sys.stdout) if index == cursor else label
+                       for index, (label, _) in enumerate(options)]
+            print('\r\033[2K' + '  '.join(choices), end='', flush=True)
             key = read_windows_key()
             if key in ('up', 'left'):
                 cursor = (cursor - 1) % len(options)
@@ -916,10 +912,8 @@ def choose_keyboard_option(title, options):
             elif key in ('q', 'escape', 'interrupt'):
                 raise KeyboardInterrupt
     finally:
-        print('\033[?25h\033[?1049l', end='', flush=True)
-    label, value = options[cursor]
-    status_line(f'{title} {label}')
-    return value
+        print('\033[?25h', flush=True)
+    return options[cursor][1]
 
 
 def confirm_merge():
