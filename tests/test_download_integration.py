@@ -40,17 +40,19 @@ class DownloadIntegration(unittest.TestCase):
             try:
                 with patch.object(tool, 'player', return_value=(urllib.request.build_opener(), video)):
                     with patch('sys.stdout', new_callable=io.StringIO) as console:
-                        folder, manifest = tool.download('https://example.org/lesson/test/classroom', name='HTTP test', output_root=root/'outputs', announce_preview=False)
+                        folder, manifest = tool.download('https://example.org/lesson/test/classroom', name='HTTP test', output_root=root/'outputs')
                     self.assertNotIn('SOURCE_PREVIEWS.jpg', console.getvalue())
                     self.assertEqual(len(manifest['streams']), 2)
                     self.assertFalse((folder/'.download.lock').exists())
-                    self.assertTrue((folder/'SOURCE_PREVIEWS.jpg').exists())
+                    self.assertFalse((folder/'SOURCE_PREVIEWS.jpg').exists())
+                    self.assertFalse((folder/'_temporary').exists())
                     for row in manifest['streams']:
                         self.assertTrue(row['audio'])
                         self.assertEqual(row['sha256'], tool.digest(folder/row['file']))
                     with patch.object(tool, 'fetch_file', side_effect=AssertionError('Cache must avoid full transfers')):
                         _, reused = tool.download('https://example.org/lesson/test/classroom', name='HTTP test', output_root=root/'outputs')
                         self.assertEqual(reused['streams'], manifest['streams'])
+                        self.assertFalse((folder/'_temporary').exists())
                     # Exercise selected-lesson batches with real HTTP transfers
                     # and media checks, without encoding combined files.
                     jobs = [dict(action='download', lesson_url=f'https://example.org/lesson/{name}/classroom',
@@ -65,14 +67,19 @@ class DownloadIntegration(unittest.TestCase):
                         self.assertEqual(len(row['streams']), 2)
                         self.assertTrue((Path(row['folder'])/'source_1.mp4').exists())
                         self.assertTrue((Path(row['folder'])/'source_2.mp4').exists())
+                        self.assertFalse((Path(row['folder'])/'_temporary').exists())
+                        self.assertFalse((Path(row['folder'])/'SOURCE_PREVIEWS.jpg').exists())
                     self.assertFalse((root/'batch'/'unselected-b').exists())
                     with patch('sys.stdout', io.StringIO()):
+                        tool.preview_files([(f'Source {i}', folder/f'source_{i}.mp4') for i in (1, 2)], folder/'SOURCE_PREVIEWS.jpg')
+                        self.assertTrue((folder/'SOURCE_PREVIEWS.jpg').exists())
                         output = folder/'combined.mp4'
                         tool.combine(folder/'source_1.mp4', folder/'source_2.mp4', output, encoder='cpu')
                     self.assertTrue(output.exists())
                     self.assertTrue(output.with_suffix('.verification.json').exists())
                     self.assertFalse(output.with_suffix('.mp4.lock').exists())
                     self.assertFalse(output.with_suffix('.ffmpeg.log').exists())
+                    self.assertFalse((folder/'SOURCE_PREVIEWS.jpg').exists())
                     # Even an empty encoder log is retained if verification fails.
                     with patch.object(tool, 'verify', side_effect=RuntimeError('Verification failed')), \
                             patch('sys.stdout', io.StringIO()):

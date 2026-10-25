@@ -21,9 +21,11 @@ class WizardTests(unittest.TestCase):
                 patch.object(tool, 'download', return_value=(folder, manifest)) as download, \
                 patch.object(tool, 'start_background') as background, \
                 patch.object(tool, 'watch_job', return_value=0), \
+                patch.object(tool, 'preview_files') as generate_preview, \
                 patch.object(tool.os, 'startfile', create=True) as open_preview, \
                 patch('sys.stdout', new_callable=io.StringIO) as output:
             tool.wizard()
+        self.assertEqual(generate_preview.call_count, 1 if background.called else 0)
         return prompts, download, background, open_preview, output.getvalue()
 
     def test_course_then_video_folders_and_optional_merge(self):
@@ -32,7 +34,7 @@ class WizardTests(unittest.TestCase):
         labels = [call.args[0] for call in prompts.call_args_list]
         self.assertIn('Course folder name', labels[2])
         self.assertIn('Video subfolder name', labels[3])
-        download.assert_called_once_with(self.lesson, name='02', output_root=tool.HOME/'downloads'/'DevOps', announce_preview=False)
+        download.assert_called_once_with(self.lesson, name='02', output_root=tool.HOME/'downloads'/'DevOps')
         background.assert_not_called()
         preview.assert_not_called()
         self.assertIn('Download complete', output)
@@ -63,7 +65,7 @@ class WizardTests(unittest.TestCase):
                 patch('sys.stdout', new_callable=io.StringIO):
             self.assertEqual(tool.wizard_download(self.lesson, '02', Path('DevOps')), expected)
         prompts.assert_called_once_with('Public course/section URL: ')
-        download.assert_called_with(self.lesson, course_url=self.course, name='02', output_root=Path('DevOps'), announce_preview=False)
+        download.assert_called_with(self.lesson, course_url=self.course, name='02', output_root=Path('DevOps'))
 
     def test_server_error_does_not_prompt_for_course(self):
         failure = HTTPError(self.lesson, 503, 'Unavailable', {}, None)
@@ -107,6 +109,7 @@ class WizardTests(unittest.TestCase):
                 patch.object(tool, 'download', return_value=(folder, manifest)), \
                 patch.object(tool, 'start_background'), \
                 patch.object(tool, 'watch_job', return_value=0), \
+                patch.object(tool, 'preview_files'), \
                 patch.object(tool.os, 'startfile', create=True), \
                 patch('sys.stdout', output):
             tool.wizard()

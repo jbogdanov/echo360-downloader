@@ -86,12 +86,12 @@ Follow these prompts in order:
 6. If **Public course/section URL** appears, paste that course's public link. Visiting it establishes the viewing session needed by some lessons.
 7. Wait while every available source stream downloads at its highest listed resolution and receives the shared audio. **Keep this console open during this download stage.**
 8. At **Combine the downloaded streams into one video? [Enter = yes, n = no]**, press **Enter** or type **y** to merge. Type **n** to finish with separate MP4s.
-9. After you press **Enter** or type **y** to accept merging, the toolkit displays and opens `SOURCE_PREVIEWS.jpg`. Inspect the rows to identify the camera and computer screen. These are **input source previews**, not a preview of the final merged layout.
+9. After you press **Enter** or type **y** to accept merging, the toolkit creates and opens a temporary `SOURCE_PREVIEWS.jpg`. Inspect the rows to identify the camera and computer screen. These are **input source previews**, not a preview of the final merged layout. The image is removed after a successful merge.
 10. At **Source ID for the LARGE video on the LEFT (1, 2)**, enter the ID you want large. The prompt lists the actual available IDs. With two streams, the other becomes small on the right automatically. With more than two, choose the small source from a second prompt.
 11. At **Encoder: auto, nvenc, or cpu [auto]**, press Enter for `auto`, or choose an encoder from the table below.
 12. The merge starts in the background, and live status appears in the same console. Wait for **Job complete. All output checks passed.** The result is saved beside the source files, for example `combined_large-2_small-1.mp4`.
 
-If the lesson contains only one video stream, downloading completes without a merge question. If you type **n** to decline merging, both source MP4s remain ready to play with audio. The preview filename is not announced or opened; you can inspect the saved image later.
+If the lesson contains only one video stream, downloading completes without a merge question. If you type **n** to decline merging, both source MP4s remain ready to play with audio, and no preview image is created.
 
 **Source IDs are not role labels.** Source 1 might show slides in one lesson and the lecturer in another. Choose using the previews or play the source MP4s. The previews sample the beginning, middle, and end; inspect more of the recording if the content changes.
 
@@ -109,7 +109,7 @@ A failure after encoding starts is reported rather than automatically restarted 
 
 Use this after a course batch download, or whenever you already have both source files.
 
-1. Open the lesson folder. Inspect `SOURCE_PREVIEWS.jpg` if present, or play both source MP4s, and decide which picture should be large.
+1. Open the lesson folder and play both source MP4s to decide which picture should be large. You can also create a comparison image using the advanced `preview` command below.
 2. Open `START.cmd` and choose **2**.
 3. At **LARGE / LEFT video path**, paste the full path to the large source, for example `C:\Videos\Echo360\Course\02\source_2.mp4`.
 4. At **SMALL / RIGHT video path**, paste the full path to the other source, such as `C:\Videos\Echo360\Course\02\source_1.mp4`.
@@ -153,7 +153,7 @@ Option 2 asks for **file paths**, not source IDs, and does not automatically ope
 
 If the terminal cannot display the Windows keyboard checklist, a numbered version appears instead. Type `1,3,5-7` and press Enter to toggle those rows; use `a` for all available, `n` for none, an empty Enter to continue, or `q` to cancel.
 
-**This workflow downloads all source streams of each selected lesson, with audio in each MP4.** It does not choose a camera/screen stream or merge automatically. Source previews are saved silently in each lesson folder. You can watch any source file directly, use **option 2** afterward to merge a pair, or prepare a merge batch with **option 4** once you have identified the source IDs for each lesson.
+**This workflow downloads all source streams of each selected lesson, with audio in each MP4.** It does not choose a camera/screen stream or merge automatically. Completed download-only jobs leave no `_temporary` folder or source preview image. You can watch any source file directly, use **option 2** afterward to merge a pair, or prepare a merge batch with **option 4** once you have identified the source IDs for each lesson.
 
 While running, the selection is saved in `jobs\<job-id>\job.json`. After success, the temporary job folder is removed and the selection and results are kept in one file: `job-history\<job-id>.json`. If a lesson fails, the batch records the error and continues with the remaining lessons; failed-job folders are retained. Use option 4 with either saved batch file to rerun the selection. Completed downloads whose checksums still match are reused.
 
@@ -218,7 +218,6 @@ downloads/
     02/
       source_1.mp4
       source_2.mp4
-      SOURCE_PREVIEWS.jpg
       manifest.json
       combined_large-2_small-1.mp4       (if merged)
       combined_large-2_small-1.verification.json
@@ -232,7 +231,7 @@ Source counts vary. Option 3 uses automatic date/ID subfolders instead of `02`. 
 3. If the files are in OneDrive, confirm they are available locally. The toolkit requests **Always keep on this device** for final MP4s.
 4. Before a flight, disconnect from the network and check that the files still play.
 
-`SOURCE_PREVIEWS.jpg` shows separate inputs. A `.partial.mp4` is unfinished; use the final MP4 after successful verification. Keep `manifest.json` and verification reports with their videos so later runs can recognize completed downloads and merges.
+`SOURCE_PREVIEWS.jpg` is a temporary comparison of separate inputs, created when you accept merging and removed after success. The downloader also removes its `_temporary` folder after all source files are ready. Files from interrupted downloads are retained for retrying; unexpected files you place in `_temporary` are preserved. A `.partial.mp4` is unfinished; use the final MP4 after successful verification. Keep `manifest.json` and verification reports with their videos so later runs can recognize completed downloads and merges.
 
 Temporary `.download.lock` and `*.mp4.lock` files protect active tasks from duplicate writers and are removed when the task releases them. After a merge and its verification succeed, an empty `*.ffmpeg.log` is deleted automatically. Logs containing errors, and logs from failed jobs, are retained for troubleshooting.
 
@@ -299,6 +298,8 @@ Running the same download again reuses completed streams only when their saved s
 ### Create a visual comparison of local files
 
 This command creates a contact sheet of the separate input files. It does not preview the merged layout. To see the actual layout, encode a short trial with `combine --seconds 20` as shown below.
+
+An explicitly requested preview stays available after this command. A later successful merge of two files in that same folder removes `SOURCE_PREVIEWS.jpg`; use a different image filename if you want to keep it.
 
 ```powershell
 .\.venv\Scripts\python.exe .\echo360_tool.py preview `
@@ -398,7 +399,7 @@ Validation recorded on **25 October 2026**, on Windows with Python 3.13, imageio
 - Real lecture files were merged into short CPU-encoded samples in both layout orientations. Output checks passed, and the layout was visually reviewed.
 - Background monitoring was verified with eight- and sixty-second samples. Closing one monitor left the worker running; another monitor observed successful completion.
 - Setup worked from a path containing spaces and Estonian characters.
-- Cleanup checks verified that completed downloads and merges leave no lock files, successful merges remove empty FFmpeg logs, failed verification retains its log, and a competing process cannot remove an active owner's lock. Compatibility with locks held by older Windows workers was also checked.
+- Cleanup checks verified that completed downloads leave no `_temporary` folder, download-only jobs create no source preview, and successful merges remove their source preview and empty FFmpeg log. Completed downloads and merges leave no lock files, failed verification retains its log, and a competing process cannot remove an active owner's lock. Compatibility with locks held by older Windows workers was also checked.
 - Job cleanup tests covered retained completion records and batch inputs, reopening the monitor after cleanup, active/failed-job preservation, cleanup retries, and preserving unexpected user files.
 - A real three-second background merge completed, its temporary job folder was automatically removed, and the monitor reopened successfully from its completion record. Cleanup of read-only completed job files and folders was also tested on Windows.
 

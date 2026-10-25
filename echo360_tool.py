@@ -308,13 +308,43 @@ def default_name(url):
     return prefix + '_' + hashlib.sha256(url.encode()).hexdigest()[:8]
 
 
-def download(lesson_url, course_url=None, name=None, output_root=None, announce_preview=True):
+def remove_generated_file(path):
+    path = Path(path)
+    try:
+        if path.is_symlink():
+            return
+        if path.exists() and os.name == 'nt' and path.stat().st_file_attributes & 1:
+            path.chmod(0o600)
+        path.unlink(missing_ok=True)
+    except OSError as error:
+        status_line(f'Could not remove temporary file {path}: {error}', 'WARNING')
+
+
+def cleanup_download_files(folder, source_ids):
+    folder = Path(folder).resolve()
+    cache = folder / '_temporary'
+    if not cache.exists() or cache.is_symlink() or cache.resolve().parent != folder:
+        return
+    names = ['audio.mp4', 'audio.download']
+    names += [f'source_{int(index)}.{suffix}.mp4' for index in source_ids for suffix in ('raw', 'partial')]
+    for name in names:
+        remove_generated_file(cache / name)
+    try:
+        if not any(cache.iterdir()):
+            if os.name == 'nt' and cache.stat().st_file_attributes & 1:
+                cache.chmod(0o700)
+            cache.rmdir()
+    except OSError as error:
+        status_line(f'Could not remove temporary folder {cache}: {error}', 'WARNING')
+
+
+def download(lesson_url, course_url=None, name=None, output_root=None):
     folder = Path(output_root or HOME / 'downloads').expanduser().resolve() / slug(name or default_name(lesson_url))
     with exclusive(folder / '.download.lock'):
-        return _download(lesson_url, course_url, name, output_root, announce_preview)
+        return _download(lesson_url, course_url, name, output_root)
 
 
-def _download(lesson_url, course_url=None, name=None, output_root=None, announce_preview=True):
+def _download(lesson_url, course_url=None, name=None, output_root=None):
     opener, video = player(lesson_url, course_url)
     tracks, audio = select_tracks(video)
     expected = duration_seconds(video['duration'])
@@ -363,9 +393,8 @@ def _download(lesson_url, course_url=None, name=None, output_root=None, announce
         pin(target)
         raw.unlink(missing_ok=True)
         status_line(f'Source {index}: {info["resolution"]}', 'READY')
-    audio_path.unlink(missing_ok=True)
-    preview_files([(f'Source {r["source_id"]}', folder / r['file']) for r in manifest['streams']],
-                  folder / 'SOURCE_PREVIEWS.jpg', title='SOURCE STREAM PREVIEWS - separate inputs, not the merged output', announce=announce_preview)
+    cleanup_download_files(folder, tracks)
+    remove_generated_file(folder / 'SOURCE_PREVIEWS.jpg')
     return folder, manifest
 
 
@@ -502,6 +531,8 @@ def _combine(large, small, output, encoder='auto', seconds=None, allow_different
     report = dict(file=str(output), large=str(large), small=str(small), encoder=chosen,
                   bytes=output.stat().st_size, sha256=digest(output), checks=['duration', 'video_and_audio', 'all_packets', 'start_middle_end_decode'], **info)
     write_json(output.with_suffix('.verification.json'), report)
+    if large.parent == small.parent:
+        remove_generated_file(large.parent / 'SOURCE_PREVIEWS.jpg')
     if log_path.stat().st_size == 0:
         try:
             log_path.unlink()
@@ -772,8 +803,7 @@ def run_batch(jobs, job_dir=None):
             if action not in ('download', 'combine'):
                 raise ValueError(f'Unknown batch action: {action}')
             status_line(f'Item {number}/{len(jobs)}: {job.get("title") or job.get("name") or job["lesson_url"]}', 'BATCH')
-            folder, manifest = download(job['lesson_url'], job.get('public_course_url'), job.get('name'), job.get('output_root'),
-                                        announce_preview=action != 'download')
+            folder, manifest = download(job['lesson_url'], job.get('public_course_url'), job.get('name'), job.get('output_root'))
             if action == 'download':
                 downloads.append(dict(folder=str(folder), lesson_url=job['lesson_url'], streams=manifest['streams']))
                 status_line(f'Item {number}: all source videos downloaded and verified.', 'COMPLETE')
@@ -855,7 +885,7 @@ def confirm_merge():
 
 def wizard_download(lesson, name, output_root):
     try:
-        return download(lesson, name=name, output_root=output_root, announce_preview=False)
+        return download(lesson, name=name, output_root=output_root)
     except (PublicAccessRequired, urllib.error.HTTPError) as exc:
         if isinstance(exc, urllib.error.HTTPError) and exc.code not in (401, 403):
             raise
@@ -865,7 +895,7 @@ def wizard_download(lesson, name, output_root):
         course = input('Public course/section URL: ').strip()
         if not course:
             raise PublicAccessRequired('No course URL supplied. Open the public course in your browser and copy its URL.') from exc
-        return download(lesson, course_url=course, name=name, output_root=output_root, announce_preview=False)
+        return download(lesson, course_url=course, name=name, output_root=output_root)
 
 
 def course_wizard():
@@ -915,6 +945,8 @@ def wizard():
             status_line(f'Download complete. Source videos are saved in: {folder}', 'COMPLETE')
             return
         preview = folder / 'SOURCE_PREVIEWS.jpg'
+        preview_files([(f'Source {r["source_id"]}', folder / r['file']) for r in manifest['streams']],
+                      preview, title='SOURCE STREAM PREVIEWS - separate inputs, not the merged output', announce=False)
         print()
         status_line('SOURCE_PREVIEWS.jpg shows the separate source streams, not the final merged layout.', 'PREVIEW')
         status_line(f'File: {preview}')
