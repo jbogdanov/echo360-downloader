@@ -43,6 +43,7 @@ class DownloadIntegration(unittest.TestCase):
                         folder, manifest = tool.download('https://example.org/lesson/test/classroom', name='HTTP test', output_root=root/'outputs', announce_preview=False)
                     self.assertNotIn('SOURCE_PREVIEWS.jpg', console.getvalue())
                     self.assertEqual(len(manifest['streams']), 2)
+                    self.assertFalse((folder/'.download.lock').exists())
                     self.assertTrue((folder/'SOURCE_PREVIEWS.jpg').exists())
                     for row in manifest['streams']:
                         self.assertTrue(row['audio'])
@@ -65,6 +66,21 @@ class DownloadIntegration(unittest.TestCase):
                         self.assertTrue((Path(row['folder'])/'source_1.mp4').exists())
                         self.assertTrue((Path(row['folder'])/'source_2.mp4').exists())
                     self.assertFalse((root/'batch'/'unselected-b').exists())
+                    with patch('sys.stdout', io.StringIO()):
+                        output = folder/'combined.mp4'
+                        tool.combine(folder/'source_1.mp4', folder/'source_2.mp4', output, encoder='cpu')
+                    self.assertTrue(output.exists())
+                    self.assertTrue(output.with_suffix('.verification.json').exists())
+                    self.assertFalse(output.with_suffix('.mp4.lock').exists())
+                    self.assertFalse(output.with_suffix('.ffmpeg.log').exists())
+                    # Even an empty encoder log is retained if verification fails.
+                    with patch.object(tool, 'verify', side_effect=RuntimeError('Verification failed')), \
+                            patch('sys.stdout', io.StringIO()):
+                        failed = folder/'failed.mp4'
+                        with self.assertRaisesRegex(RuntimeError, 'Verification failed'):
+                            tool.combine(folder/'source_1.mp4', folder/'source_2.mp4', failed, encoder='cpu')
+                    self.assertTrue(failed.with_suffix('.ffmpeg.log').exists())
+                    self.assertFalse(failed.with_suffix('.mp4.lock').exists())
             finally:
                 server.shutdown()
                 server.server_close()

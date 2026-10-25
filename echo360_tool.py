@@ -83,31 +83,47 @@ def read_json(path):
 
 @contextmanager
 def exclusive(path):
-    """Reject duplicate jobs writing the same destination; OS releases locks on exit."""
-    path = Path(path)
+    """Reject duplicate writers and remove the lock when its owner finishes."""
+    path = Path(path).resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open('a+b') as handle:
-        handle.seek(0)
-        handle.write(b'0')
-        handle.flush()
-        handle.seek(0)
-        try:
-            if os.name == 'nt':
-                import msvcrt
-                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-            else:
-                import fcntl
-                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except OSError:
-            raise RuntimeError(f'Another job is already using this destination: {path.parent}') from None
+    if os.name == 'nt':
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+        kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                                      ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+        kernel.CreateFileW.restype = wintypes.HANDLE
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        # OPEN_ALWAYS, no sharing, FILE_FLAG_DELETE_ON_CLOSE. Deletion and
+        # release happen together, avoiding an unlock-then-unlink race.
+        handle = kernel.CreateFileW(str(path), 0xC0010000, 0, None, 4, 0x04000080, None)
+        if handle == ctypes.c_void_p(-1).value:
+            error = ctypes.get_last_error()
+            if error in (32, 33):
+                raise RuntimeError(f'Another job is already using this destination: {path.parent}')
+            raise ctypes.WinError(error)
         try:
             yield
         finally:
-            handle.seek(0)
-            if os.name == 'nt':
-                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
-            else:
-                fcntl.flock(handle, fcntl.LOCK_UN)
+            kernel.CloseHandle(handle)
+        return
+    import fcntl
+    while True:
+        with path.open('a+b') as handle:
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                raise RuntimeError(f'Another job is already using this destination: {path.parent}') from None
+            # A previous owner may have unlinked this inode while we opened it.
+            try:
+                if not os.path.samestat(os.fstat(handle.fileno()), path.stat()):
+                    continue
+            except FileNotFoundError:
+                continue
+            try:
+                yield
+            finally:
+                path.unlink(missing_ok=True)
+            return  # Closing the handle releases flock after unlinking.
 
 
 def digest(path):
@@ -450,8 +466,8 @@ def _combine(large, small, output, encoder='auto', seconds=None, allow_different
     status_line(f'Encoding with {chosen}: {output}', 'ENCODE')
     update_status(job_dir, phase='encoding', output=str(output), encoder=chosen, percent=0,
                   total_seconds=expected, processed_seconds=0, speed_x=None, eta_seconds=None, elapsed_seconds=0)
-    with log_path.open('w', encoding='utf-8') as log:
-        proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=log, text=True, creationflags=NO_WINDOW)
+    with log_path.open('w', encoding='utf-8') as log, \
+            subprocess.Popen(args, stdout=subprocess.PIPE, stderr=log, text=True, creationflags=NO_WINDOW) as proc:
         began = time.monotonic()
         last = last_log = 0
         progress = {}
@@ -486,6 +502,11 @@ def _combine(large, small, output, encoder='auto', seconds=None, allow_different
     report = dict(file=str(output), large=str(large), small=str(small), encoder=chosen,
                   bytes=output.stat().st_size, sha256=digest(output), checks=['duration', 'video_and_audio', 'all_packets', 'start_middle_end_decode'], **info)
     write_json(output.with_suffix('.verification.json'), report)
+    if log_path.stat().st_size == 0:
+        try:
+            log_path.unlink()
+        except OSError as error:
+            status_line(f'Output is ready, but the empty log could not be removed: {error}', 'WARNING')
     status_line(str(output), 'COMPLETE')
     return report
 

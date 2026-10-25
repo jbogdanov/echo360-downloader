@@ -222,7 +222,7 @@ downloads/
       manifest.json
       combined_large-2_small-1.mp4       (if merged)
       combined_large-2_small-1.verification.json
-      combined_large-2_small-1.ffmpeg.log
+      combined_large-2_small-1.ffmpeg.log (only kept for errors/failed jobs)
 ```
 
 Source counts vary. Option 3 uses automatic date/ID subfolders instead of `02`. Option 2 writes to the exact output path you entered.
@@ -233,6 +233,8 @@ Source counts vary. Option 3 uses automatic date/ID subfolders instead of `02`. 
 4. Before a flight, disconnect from the network and check that the files still play.
 
 `SOURCE_PREVIEWS.jpg` shows separate inputs. A `.partial.mp4` is unfinished; use the final MP4 after successful verification. Keep `manifest.json` and verification reports with their videos so later runs can recognize completed downloads and merges.
+
+Temporary `.download.lock` and `*.mp4.lock` files protect active tasks from duplicate writers and are removed when the task releases them. After a merge and its verification succeed, an empty `*.ffmpeg.log` is deleted automatically. Logs containing errors, and logs from failed jobs, are retained for troubleshooting. Job status and history under `jobs/` remain available for monitoring and reruns.
 
 ### Combined layout and synchronization
 
@@ -385,13 +387,14 @@ Login-only institutional pages, DRM/encrypted streams, and HLS with separate med
 
 Validation recorded on **25 October 2026**, on Windows with Python 3.13, imageio-ffmpeg 0.6.0, Pillow 12.2.0, and bundled FFmpeg 7.1:
 
-- **37 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, wizard prompts, course discovery/selection, batch failure handling, and live monitoring.
+- **40 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, wizard prompts, course discovery/selection, batch failure handling, live monitoring, and lock cleanup with concurrent processes.
 - Local HTTP integration downloaded two streams plus shared audio, muxed and verified the outputs, created source previews, and checked checksum-based reuse. A two-lesson download batch also completed successfully.
 - All eight source MP4s checked across four downloaded lessons contained AAC audio. Ten-second samples starting one minute into each file decoded with non-silent audio; this was a sample check, not a full listening review.
 - Metadata discovery succeeded for all four supplied public courses. The Windows checklist was exercised in a real console using Space/X, arrows, Page Down, and Enter.
 - Real lecture files were merged into short CPU-encoded samples in both layout orientations. Output checks passed, and the layout was visually reviewed.
 - Background monitoring was verified with eight- and sixty-second samples. Closing one monitor left the worker running; another monitor observed successful completion.
 - Setup worked from a path containing spaces and Estonian characters.
+- Cleanup checks verified that completed downloads and merges leave no lock files, successful merges remove empty FFmpeg logs, failed verification retains its log, and a competing process cannot remove an active owner's lock. Compatibility with locks held by older Windows workers was also checked.
 
 Run the reproducible offline tests from the toolkit folder:
 
