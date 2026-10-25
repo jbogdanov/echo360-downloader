@@ -23,5 +23,6 @@ STATUS.txt
 .env
 .env.*
 my-lectures*.json
+/batch.json
 Thumbs.db
 desktop.ini

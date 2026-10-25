@@ -67,9 +67,9 @@ Follow these prompts in order:
 
 1. Open `START.cmd` and choose **1**.
 2. At **Specific lesson/classroom URL**, paste the recording's full URL.
-3. At **Course folder name [Echo360]**, enter a name such as `DevOps`, or press Enter for `Echo360`.
+3. At **Course folder name [Echo360]**, enter a name such as `Course`, or press Enter for `Echo360`.
 4. At **Video subfolder name**, enter a name such as `02`, or press Enter for an automatic date/ID name.
-5. At **Download root folder**, press Enter for the toolkit's `downloads` folder, or enter an absolute path such as `C:\Videos\Echo360`. With the example names and default root, the destination is `downloads\DevOps\02`.
+5. At **Download root folder**, press Enter for the toolkit's `downloads` folder, or enter an absolute path such as `C:\Videos\Echo360`. With the example names and default root, the destination is `downloads\Course\02`.
 6. If **Public course/section URL** appears, paste that course's public link. Visiting it establishes the viewing session needed by some lessons.
 7. Wait while every available source stream downloads at its highest listed resolution and receives the shared audio. **Keep this console open during this download stage.**
 8. At **Combine the downloaded streams into one video? [y/N]**, enter **y** to merge, or **n / Enter** to finish with separate MP4s.
@@ -98,9 +98,9 @@ Use this after a course batch download, or whenever you already have both source
 
 1. Open the lesson folder. Inspect `SOURCE_PREVIEWS.jpg` if present, or play both source MP4s, and decide which picture should be large.
 2. Open `START.cmd` and choose **2**.
-3. At **LARGE / LEFT video path**, paste the full path to the large source, for example `C:\Videos\Echo360\DevOps\02\source_2.mp4`.
-4. At **SMALL / RIGHT video path**, paste the full path to the other source, such as `C:\Videos\Echo360\DevOps\02\source_1.mp4`.
-5. At **New output MP4 path**, enter a new filename, such as `C:\Videos\Echo360\DevOps\02\teacher-large.mp4`.
+3. At **LARGE / LEFT video path**, paste the full path to the large source, for example `C:\Videos\Echo360\Course\02\source_2.mp4`.
+4. At **SMALL / RIGHT video path**, paste the full path to the other source, such as `C:\Videos\Echo360\Course\02\source_1.mp4`.
+5. At **New output MP4 path**, enter a new filename, such as `C:\Videos\Echo360\Course\02\teacher-large.mp4`.
 6. Choose `auto`, `nvenc`, or `cpu`, or press Enter for `auto`.
 7. Watch the background merge's progress. When all checks pass, open the output MP4 in your video player.
 
@@ -115,7 +115,7 @@ Option 2 asks for **file paths**, not source IDs, and does not automatically ope
 3. Wait for the lesson list to load. It shows dates and times in the course's local timezone and indicates which recordings are available.
 4. Move through the list and mark the lessons you want with **Space** or **X**. Selected lessons display `[X]`. Nothing is selected initially.
 5. Press **Enter** when your selection is ready. The selected lessons are listed in the console.
-6. At **Course folder name [Echo360]**, enter a name such as `DevOps`.
+6. At **Course folder name [Echo360]**, enter a name such as `Course`.
 7. At **Download root folder**, press Enter for `downloads`, or enter an absolute path. Each selected lesson gets its own automatic date/ID subfolder inside the course folder; there is no individual subfolder-name prompt in this workflow.
 8. The background batch starts automatically. Follow the current lesson and download messages in the same window. When it finishes, open the course folder to find the source MP4s.
 
@@ -158,9 +158,9 @@ You can also drag the saved batch file onto **`RUN_BATCH.cmd`**. Wait for the pr
 
 ### Prepare a download-and-merge batch
 
-1. Copy [examples/batch.example.json](examples/batch.example.json) to `my-lectures.json`.
+1. Copy [examples/batch.example.json](examples/batch.example.json) to `batch.json`.
 2. Replace each placeholder lesson URL and public course URL with your actual links.
-3. Give each job a distinct `name` and set `output_root` to the desired **course folder**, for example `C:/Videos/Echo360/DevOps`. Unlike the wizard, JSON jobs do not prompt for a course folder.
+3. Give each job a distinct `name` and set `output_root` to the desired **course folder**, for example `C:/Videos/Echo360/Course`. Unlike the wizard, JSON jobs do not prompt for a course folder.
 4. Inspect each lesson's source previews or MP4s. Set `large_source` and `small_source` to two different IDs for that lesson, and choose an `encoder`. Roles can differ between lessons.
 5. Save the JSON file. Use forward slashes in paths, or escape backslashes as `\\`.
 6. Run it with option **4**, or drag it onto `RUN_BATCH.cmd`.
@@ -197,11 +197,11 @@ Console output uses `>` markers and colored labels: cyan for information, green 
 
 ## 4. Find the output and watch offline
 
-For option 1 with course `DevOps` and video subfolder `02`, the files look like this:
+For option 1 with course `Course` and video subfolder `02`, the files look like this:
 
 ```text
 downloads/
-  DevOps/
+  Course/
     02/
       source_1.mp4
       source_2.mp4
@@ -316,7 +316,7 @@ For slides large, swap the two input paths and use another output name. Omit `--
 ### Run or watch a batch
 
 ```powershell
-.\.venv\Scripts\python.exe .\echo360_tool.py batch .\my-lectures.json --background --watch
+.\.venv\Scripts\python.exe .\echo360_tool.py batch .\batch.json --background --watch
 
 # Watch the most recently started job
 .\.venv\Scripts\python.exe .\echo360_tool.py watch
