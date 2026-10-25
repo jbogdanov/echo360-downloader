@@ -64,6 +64,47 @@ class MainMenuTests(unittest.TestCase):
         read_key.assert_not_called()
         self.assertNotIn('\033[', output.getvalue())
 
+    def choose_prompt(self, prompt, keys):
+        with patch.object(tool, 'windows_terminal', return_value=True), \
+                patch.object(tool, 'read_windows_key', side_effect=keys), \
+                patch('builtins.input') as typed, \
+                patch('sys.stdout', new_callable=io.StringIO) as output:
+            value = prompt()
+        typed.assert_not_called()
+        self.assertIn('\033[?25h\033[?1049l', output.getvalue())
+        return value, output.getvalue()
+
+    def test_merge_arrows_default_yes_and_choose_no(self):
+        self.assertIs(self.choose_prompt(tool.confirm_merge, ['enter'])[0], True)
+        value, output = self.choose_prompt(tool.confirm_merge, ['right', 'enter'])
+        self.assertIs(value, False)
+        self.assertIn('> [No]', output)
+        self.assertIn('Combine the downloaded streams into one video? No', output)
+
+    def test_encoder_arrows_map_labels_to_worker_values(self):
+        for keys, expected in [(['enter'], 'auto'), (['down', 'enter'], 'cpu'),
+                               (['down', 'down', 'enter'], 'nvenc'),
+                               (['left', 'enter'], 'nvenc'), (['end', 'home', 'enter'], 'auto')]:
+            with self.subTest(keys=keys):
+                self.assertEqual(self.choose_prompt(tool.choose_encoder, keys)[0], expected)
+
+    def test_choice_cancellation_restores_terminal(self):
+        for key in ('q', 'escape', 'interrupt'):
+            with self.subTest(key=key), \
+                    patch.object(tool, 'windows_terminal', return_value=True), \
+                    patch.object(tool, 'read_windows_key', return_value=key), \
+                    patch('sys.stdout', new_callable=io.StringIO) as output:
+                with self.assertRaises(KeyboardInterrupt):
+                    tool.choose_encoder()
+            self.assertTrue(output.getvalue().endswith('\033[?25h\033[?1049l'))
+
+    def test_choice_controls_are_in_bottom_footer(self):
+        _, output = self.choose_prompt(tool.confirm_merge, ['enter'])
+        screen = output.split('\033[H\033[2J', 1)[1].split('\033[?25h', 1)[0]
+        rows = screen.splitlines()
+        self.assertIn('> [Yes]', screen)
+        self.assertEqual(rows[-1], 'Arrow keys: move | Enter: choose | Q/Esc: cancel')
+
 
 if __name__ == '__main__':
     unittest.main()

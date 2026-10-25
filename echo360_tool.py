@@ -884,7 +884,44 @@ def choose_source(label, mapping):
         status_line(f'Enter one of: {list(mapping)}', 'WARNING')
 
 
+def choose_keyboard_option(title, options):
+    """Choose one (label, value) pair; the first option is the default."""
+    cursor = 0
+    print('\033[?1049h\033[?25l', end='', flush=True)
+    try:
+        while True:
+            columns, lines = shutil.get_terminal_size((100, 25))
+            width = max(1, columns - 1)
+            rows = [colored('ECHO360 RIPPER'[:width], '36', sys.stdout), '-' * width, title[:width], '']
+            for index, (label, _) in enumerate(options):
+                line = (f'> [{label}]' if index == cursor else f'  {label}')[:width]
+                rows.append(colored(line, '92', sys.stdout) if index == cursor else line)
+            rows.extend([''] * max(0, lines - 2 - len(rows)))
+            rows.extend(['-' * width, 'Arrow keys: move | Enter: choose | Q/Esc: cancel'[:width]])
+            print('\033[H\033[2J' + '\n'.join(rows), end='', flush=True)
+            key = read_windows_key()
+            if key in ('up', 'left'):
+                cursor = (cursor - 1) % len(options)
+            elif key in ('down', 'right'):
+                cursor = (cursor + 1) % len(options)
+            elif key == 'home':
+                cursor = 0
+            elif key == 'end':
+                cursor = len(options) - 1
+            elif key == 'enter':
+                break
+            elif key in ('q', 'escape', 'interrupt'):
+                raise KeyboardInterrupt
+    finally:
+        print('\033[?25h\033[?1049l', end='', flush=True)
+    label, value = options[cursor]
+    status_line(f'{title} {label}')
+    return value
+
+
 def confirm_merge():
+    if windows_terminal():
+        return choose_keyboard_option('Combine the downloaded streams into one video?', [('Yes', True), ('No', False)])
     while True:
         answer = input('Combine the downloaded streams into one video? [yes] no: ').strip().lower()
         if answer in ('', 'y', 'yes'):
@@ -895,6 +932,8 @@ def confirm_merge():
 
 
 def choose_encoder():
+    if windows_terminal():
+        return choose_keyboard_option('Encoder:', [('Auto', 'auto'), ('CPU', 'cpu'), ('NVIDIA (NVENC)', 'nvenc')])
     encoder = input('Encoder: auto, nvenc, or cpu [auto]: ').strip() or 'auto'
     if encoder not in ('auto', 'nvenc', 'cpu'):
         raise ValueError('Encoder must be auto, nvenc, or cpu.')

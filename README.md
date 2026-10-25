@@ -85,17 +85,19 @@ Follow these prompts in order:
 5. At **Download root folder**, press Enter for the toolkit's `downloads` folder, or enter an absolute path such as `C:\Videos\Echo360`. With the example names and default root, the destination is `downloads\Course\02`.
 6. If **Public course/section URL** appears, paste that course's public link. Visiting it establishes the viewing session needed by some lessons.
 7. Wait while every available source stream downloads at its highest listed resolution and receives the shared audio. **Keep this console open during this download stage.**
-8. At **Combine the downloaded streams into one video? [yes] no**, press **Enter** or type **y** to merge. Type **n** to finish with separate MP4s.
-9. After you press **Enter** or type **y** to accept merging, the toolkit creates and opens a temporary `SOURCE_PREVIEWS.jpg`. Inspect the rows to identify the camera and computer screen. These are **input source previews**, not a preview of the final merged layout. The image is removed after a successful merge.
+8. At **Combine the downloaded streams into one video?**, **Yes** is selected by default. Press **Enter** to merge, or use the arrow keys to select **No** and press Enter to finish with separate MP4s.
+9. After you select **Yes** to accept merging, the toolkit creates and opens a temporary `SOURCE_PREVIEWS.jpg`. Inspect the rows to identify the camera and computer screen. These are **input source previews**, not a preview of the final merged layout. The image is removed after a successful merge.
 10. At **Source ID for the LARGE video on the LEFT (1, 2)**, enter the ID you want large. The prompt lists the actual available IDs. With two streams, the other becomes small on the right automatically. With more than two, choose the small source from a second prompt.
-11. At **Encoder: auto, nvenc, or cpu [auto]**, press Enter for `auto`, or choose an encoder from the table below.
+11. At **Encoder**, press Enter for **Auto**, or use the arrow keys to choose **CPU** or **NVIDIA (NVENC)** and press Enter.
 12. The merge starts in the background, and live status appears in the same console. Wait for **Job complete. All output checks passed.** The result is saved beside the source files, for example `combined_large-2_small-1.mp4`.
 
-If the lesson contains only one video stream, downloading completes without a merge question. If you type **n** to decline merging, both source MP4s remain ready to play with audio, and no preview image is created.
+If the lesson contains only one video stream, downloading completes without a merge question. If you select **No** to decline merging, both source MP4s remain ready to play with audio, and no preview image is created.
 
 **Source IDs are not role labels.** Source 1 might show slides in one lesson and the lecturer in another. Choose using the previews or play the source MP4s. The previews sample the beginning, middle, and end; inspect more of the recording if the content changes.
 
 ### Choose an encoder
+
+Yes/No and encoder selectors use arrow keys and Enter, with the current choice highlighted in green and keyboard controls in a bottom footer. **Q / Esc** cancels before starting a job. In consoles without keyboard navigation, the text prompts remain available: `[yes] no` accepts Enter for yes, and the encoder prompt accepts `auto`, `cpu`, or `nvenc`.
 
 | Choice | Behavior |
 |---|---|
@@ -114,7 +116,7 @@ Use this after a course batch download, or whenever you already have both source
 3. The **LARGE / LEFT** file browser opens in the project's `downloads` folder. A header and divider identify which video you are choosing. Use **Up / Down** to move the green `>` selection and **Enter** to open a folder or select a video, such as `Course\02\source_2.mp4`. If `downloads` does not exist yet, the browser starts in the project folder.
 4. The **SMALL / RIGHT** browser opens in the large video's folder. Choose the other source, such as `source_1.mp4`. The already selected large video is hidden from this list.
 5. The output path is generated automatically and displayed. With these sources, it is `combined_large-2_small-1.mp4` in the same lesson folder, just like option 1.
-6. Choose `auto`, `nvenc`, or `cpu`, or press Enter for `auto`.
+6. Use the arrow keys to choose **Auto**, **CPU**, or **NVIDIA (NVENC)**, then press Enter. **Auto** is selected by default.
 7. Watch the background merge's progress. When all checks pass, open the output MP4 in your video player.
 
 Keyboard controls stay in a footer at the bottom of the file browser. Use **Backspace** or the **[..] Parent folder** row to go up, **Page Up / Page Down** to scroll, and **Home / End** to jump to the first / last entry. Press **P** to paste a folder or video path, including a path on another drive; quotes copied from File Explorer are accepted. **Q / Esc** cancels without starting a merge. The browser shows folders and common video formats, including MP4, MKV, MOV, and WebM.
@@ -132,9 +134,9 @@ If the console cannot support keyboard navigation, option 2 asks you to paste bo
 5. Press **Enter** when your selection is ready. The selected lessons are listed in the console.
 6. At **Course folder name [Echo360]**, enter a name such as `Course`, or press Enter for `Echo360`.
 7. At **Download root folder**, press Enter for `downloads`, or enter an absolute path. Each selected lesson gets its own automatic date/ID subfolder inside the course folder; there is no individual subfolder-name prompt in this workflow.
-8. At **Combine the downloaded streams into one video? [yes] no**, press Enter to merge each lesson, or type `n` to download only.
+8. At **Combine the downloaded streams into one video?**, press Enter to accept the default **Yes**, or use the arrow keys to select **No** and press Enter to download only.
 9. If merging, the toolkit reads the available source IDs from the first selected lesson. **No previews are created or opened.** At **Source ID for the LARGE video on the LEFT for all lessons (1, 2)**, choose the source you want large throughout the batch. With two streams, the other automatically becomes small; with more than two, choose the small source once too.
-10. Choose `auto`, `nvenc`, or `cpu`, or press Enter for `auto`. This encoder and the selected source layout apply to every lesson. Download-only batches skip the source and encoder questions.
+10. Use the arrow keys to choose **Auto**, **CPU**, or **NVIDIA (NVENC)**, then press Enter. **Auto** is selected by default. This encoder and the selected source layout apply to every lesson. Download-only batches skip the source and encoder questions.
 11. The background batch downloads and, if requested, merges each lesson in sequence. Follow progress in the same window. Each lesson folder contains the source MP4s with audio and, when merged, a file such as `combined_large-2_small-1.mp4`.
 
 ```text
@@ -400,7 +402,7 @@ Login-only institutional pages, DRM/encrypted streams, and HLS with separate med
 
 Validation recorded on **25 October 2026**, on Windows with Python 3.13, imageio-ffmpeg 0.6.0, Pillow 12.2.0, and bundled FFmpeg 7.1:
 
-- **67 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, main-menu and file-browser navigation, terminal restoration, wizard prompts and automatic output naming, course discovery/selection and shared batch layouts without previews, batch failure handling, live monitoring, lock cleanup with concurrent processes, and completed-job cleanup.
+- **71 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, main-menu, Yes/No, encoder, and file-browser navigation, terminal restoration, wizard prompts and automatic output naming, course discovery/selection and shared batch layouts without previews, batch failure handling, live monitoring, lock cleanup with concurrent processes, and completed-job cleanup.
 - Local HTTP integration downloaded two streams plus shared audio, muxed and verified the outputs, created source previews, and checked checksum-based reuse. A two-lesson download batch also completed successfully.
 - All eight source MP4s checked across four downloaded lessons contained AAC audio. Ten-second samples starting one minute into each file decoded with non-silent audio; this was a sample check, not a full listening review.
 - Metadata discovery succeeded for all four supplied public courses. The Windows checklist was exercised in a real console using Space/X, arrows, Page Down, and Enter.
