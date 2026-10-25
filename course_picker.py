@@ -174,21 +174,22 @@ def windows_terminal():
     return bool(kernel.GetConsoleMode(handle, ctypes.byref(mode)) and kernel.SetConsoleMode(handle, mode.value | 4))
 
 
+def read_windows_key():
+    import msvcrt
+    key = msvcrt.getwch()
+    if key in ('\x00', '\xe0'):
+        return {'H': 'up', 'P': 'down', 'I': 'pageup', 'Q': 'pagedown', 'G': 'home', 'O': 'end'}.get(msvcrt.getwch(), '')
+    return {' ': 'space', '\r': 'enter', '\x1b': 'escape', '\x03': 'interrupt'}.get(key, key.lower())
+
+
 def choose_lessons(lessons):
     if not any(row['available'] for row in lessons):
         print('> No recorded videos are available to select in this course.')
         return []
     if not windows_terminal():
         return choose_by_line(lessons)
-    import msvcrt
     columns, lines = shutil.get_terminal_size((100, 25))
     page_size = max(1, lines-7)
-
-    def read_key():
-        key = msvcrt.getwch()
-        if key in ('\x00', '\xe0'):
-            return {'H': 'up', 'P': 'down', 'I': 'pageup', 'Q': 'pagedown', 'G': 'home', 'O': 'end'}.get(msvcrt.getwch(), '')
-        return {' ': 'space', '\r': 'enter', '\x1b': 'escape', '\x03': 'interrupt'}.get(key, key.lower())
 
     def render(cursor, selected):
         width = max(1, shutil.get_terminal_size((columns, lines)).columns-1)
@@ -210,6 +211,6 @@ def choose_lessons(lessons):
 
     print('\033[?1049h\033[?25l', end='', flush=True)
     try:
-        return choose_by_keys(lessons, read_key, render, page_size)
+        return choose_by_keys(lessons, read_windows_key, render, page_size)
     finally:
         print('\033[?25h\033[?1049l', end='', flush=True)

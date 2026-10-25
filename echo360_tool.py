@@ -19,7 +19,7 @@ import urllib.error
 import uuid
 
 import imageio_ffmpeg
-from course_picker import load_course, choose_lessons, lesson_label
+from course_picker import load_course, choose_lessons, lesson_label, windows_terminal, read_windows_key
 
 HOME = Path(__file__).resolve().parent
 FF = imageio_ffmpeg.get_ffmpeg_exe()
@@ -954,10 +954,50 @@ def course_wizard():
     return watch_job(start_background({'type': 'batch', 'jobs': jobs}))
 
 
+def choose_main_menu():
+    options = ['Download a lesson (optional merge)',
+               'Combine two existing local video files',
+               'Select lessons from a public course and batch download (optional merge)',
+               'Run a saved batch JSON file']
+    if not windows_terminal():
+        print('\n'.join(f'{i}. {label}' for i, label in enumerate(options, 1)) + '\n')
+        return input('Choose 1, 2, 3, or 4 [1]: ').strip() or '1'
+    cursor = 0
+    print('\033[?1049h\033[?25l', end='', flush=True)
+    try:
+        while True:
+            width = max(1, shutil.get_terminal_size((100, 25)).columns - 1)
+            rows = [colored(line[:width], '36', sys.stdout) for line in BANNER.splitlines()]
+            rows.append('Up/Down: move | Enter: choose | Q/Esc: quit'[:width])
+            rows.append('')
+            for index, label in enumerate(options):
+                line = f'{">" if index == cursor else " "} {label}'[:width]
+                rows.append(colored(line, '92', sys.stdout) if index == cursor else line)
+            print('\033[H\033[2J' + '\n'.join(rows), end='', flush=True)
+            key = read_windows_key()
+            if key == 'up':
+                cursor = (cursor - 1) % len(options)
+            elif key == 'down':
+                cursor = (cursor + 1) % len(options)
+            elif key == 'home':
+                cursor = 0
+            elif key == 'end':
+                cursor = len(options) - 1
+            elif key == 'enter':
+                return str(cursor + 1)
+            elif key in ('q', 'escape'):
+                return None
+            elif key == 'interrupt':
+                raise KeyboardInterrupt
+    finally:
+        print('\033[?25h\033[?1049l', end='', flush=True)
+
+
 def wizard():
     print(colored(BANNER, '36', sys.stdout))
-    print('1. Download a lesson (optional merge)\n2. Combine two existing local video files\n3. Select lessons from a public course and batch download (optional merge)\n4. Run a saved batch JSON file\n')
-    mode = input('Choose 1, 2, 3, or 4 [1]: ').strip() or '1'
+    mode = choose_main_menu()
+    if mode is None:
+        return 0
     if mode == '3':
         return course_wizard()
     if mode == '4':

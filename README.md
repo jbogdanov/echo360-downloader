@@ -30,15 +30,15 @@ You need Windows 10 or 11, Python **3.10 or newer**, an internet connection for 
 
 ## 2. Choose your workflow
 
-The menu is:
+Use **Up / Down** to move the `>` marker, then press **Enter** to open the selected workflow. The current choice is also highlighted in color when supported:
 
 ```text
-1. Download a lesson (optional merge)
-2. Combine two existing local video files
-3. Select lessons from a public course and batch download (optional merge)
-4. Run a saved batch JSON file
+Up/Down: move | Enter: choose | Q/Esc: quit
 
-Choose 1, 2, 3, or 4 [1]:
+> Download a lesson (optional merge)
+  Combine two existing local video files
+  Select lessons from a public course and batch download (optional merge)
+  Run a saved batch JSON file
 ```
 
 | You want to… | Choose |
@@ -48,7 +48,7 @@ Choose 1, 2, 3, or 4 [1]:
 | Mark several lessons with `[X]`, download them, and optionally merge with one layout for all | [Option 3](#option-3-select-course-lessons-and-batch-download) |
 | Rerun a saved selection or use a prepared download/merge batch | [Option 4](#option-4-run-a-saved-batch) |
 
-Pressing Enter at the menu selects option 1. Open `START.cmd` again whenever you want to begin another workflow.
+The first workflow is selected initially, so pressing Enter opens option 1. The option numbers in this guide refer to the four rows above: move to that row and press Enter. **Home / End** jump to the first / last row; **Q / Esc** exits. Open `START.cmd` again whenever you want to begin another workflow. If the console cannot support keyboard navigation, the toolkit falls back to the numbered prompt.
 
 ### Get the correct Echo360 link
 
@@ -397,7 +397,7 @@ Login-only institutional pages, DRM/encrypted streams, and HLS with separate med
 
 Validation recorded on **25 October 2026**, on Windows with Python 3.13, imageio-ffmpeg 0.6.0, Pillow 12.2.0, and bundled FFmpeg 7.1:
 
-- **53 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, wizard prompts and automatic output naming, course discovery/selection and shared batch layouts without previews, batch failure handling, live monitoring, lock cleanup with concurrent processes, and completed-job cleanup.
+- **58 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, main-menu keyboard navigation and terminal restoration, wizard prompts and automatic output naming, course discovery/selection and shared batch layouts without previews, batch failure handling, live monitoring, lock cleanup with concurrent processes, and completed-job cleanup.
 - Local HTTP integration downloaded two streams plus shared audio, muxed and verified the outputs, created source previews, and checked checksum-based reuse. A two-lesson download batch also completed successfully.
 - All eight source MP4s checked across four downloaded lessons contained AAC audio. Ten-second samples starting one minute into each file decoded with non-silent audio; this was a sample check, not a full listening review.
 - Metadata discovery succeeded for all four supplied public courses. The Windows checklist was exercised in a real console using Space/X, arrows, Page Down, and Enter.
