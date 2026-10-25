@@ -575,16 +575,106 @@ def progress_text(state):
     return f'{item}{str(phase).replace("_", " ").capitalize()}...'
 
 
+JOB_FILES = {'job.json', 'status.json', 'STATUS.txt', 'launcher.json', 'run.log',
+             'result.json', 'batch-report.json'}
+
+
+def history_path(directory):
+    return HOME / 'job-history' / (Path(directory).name + '.json')
+
+
+def archive_completed_job(directory):
+    directory = Path(directory).resolve()
+    if directory.parent != (HOME / 'jobs').resolve():
+        raise ValueError('Cleanup is restricted to this toolkit\'s jobs folder.')
+    state = read_json(directory / 'status.json')
+    if state.get('state') != 'complete':
+        return None
+    record = dict(read_json(directory / 'job.json'))
+    record.update(status=state, result=read_json(directory / 'result.json'))
+    destination = history_path(directory)
+    write_json(destination, record)
+    return destination
+
+
+def cleanup_completed_job(directory):
+    original = Path(directory)
+    directory = original.resolve()
+    if original.is_symlink() or directory.parent != (HOME / 'jobs').resolve():
+        raise ValueError('Cleanup is restricted to this toolkit\'s jobs folder.')
+    if not directory.exists():
+        return True
+    # Preserve unexpected files the user may have placed here. Never recurse.
+    if any(p.name not in JOB_FILES or not p.is_file() or p.is_symlink() for p in directory.iterdir()):
+        return False
+    history = history_path(directory)
+    state = (read_json(directory / 'status.json') if (directory / 'status.json').exists()
+             else read_json(history)['status'])
+    if state.get('state') != 'complete':
+        return False
+    pids = [state.get('pid')]
+    if (directory / 'launcher.json').exists():
+        pids.append(read_json(directory / 'launcher.json').get('pid'))
+    if any(pid and process_alive(pid) is not False for pid in pids):
+        return False
+    if all((directory / name).exists() for name in ('job.json', 'status.json', 'result.json')):
+        if not archive_completed_job(directory):
+            return False
+    elif not history.exists() or read_json(history).get('status', {}).get('state') != 'complete':
+        return False
+    # Keep the inputs/status/result until last, allowing retry if run.log is
+    # briefly held by the Windows Python launcher or a live monitor.
+    for name in ('run.log', 'STATUS.txt', 'launcher.json', 'batch-report.json', 'result.json', 'job.json', 'status.json'):
+        path = directory / name
+        if path.exists() and os.name == 'nt' and path.stat().st_file_attributes & 1:
+            path.chmod(0o600)  # Clear OneDrive's read-only flag on completed job files.
+        path.unlink(missing_ok=True)
+    if os.name == 'nt' and directory.stat().st_file_attributes & 1:
+        directory.chmod(0o700)
+    directory.rmdir()
+    return True
+
+
+def cleanup_after_exit(directory):
+    # The worker and the Windows venv launcher must both close their log handles.
+    # This detached helper runs briefly without an open console or a monitor.
+    directory = Path(directory)
+    launcher_seen = False
+    for _ in range(60):
+        if not directory.exists():
+            return
+        try:
+            launcher_seen = launcher_seen or (directory / 'launcher.json').exists()
+            if launcher_seen and cleanup_completed_job(directory):
+                return
+        except OSError:
+            pass
+        time.sleep(0.5)
+
+
+def schedule_job_cleanup(directory):
+    options = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=HOME)
+    if os.name == 'nt':
+        options['creationflags'] = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        options['start_new_session'] = True
+    subprocess.Popen([sys.executable, str(Path(__file__).resolve()), '_cleanup', str(directory)], **options)
+
+
 def watch_job(directory=None):
     if directory is None:
-        candidates = sorted((HOME / 'jobs').glob('*/job.json'))
+        candidates = {p.parent.name for p in (HOME / 'jobs').glob('*/job.json')}
+        candidates.update(p.stem for p in (HOME / 'job-history').glob('*.json'))
         if not candidates:
             raise FileNotFoundError('No background jobs found yet.')
-        directory = candidates[-1].parent
+        directory = HOME / 'jobs' / max(candidates)
     directory = Path(directory).expanduser().resolve()
-    if directory.is_file():
+    if directory.parent == (HOME / 'job-history').resolve() and directory.suffix == '.json':
+        directory = HOME / 'jobs' / directory.stem
+    elif directory.is_file() or directory.name in JOB_FILES:
         directory = directory.parent
-    if not (directory / 'job.json').is_file():
+    history = history_path(directory)
+    if not (directory / 'job.json').is_file() and not history.is_file():
         raise FileNotFoundError(f'Not a job folder: {directory}')
     status_line(f'Live status: {directory.name}', 'WATCH')
     status_line('Close this window or press Ctrl+C to stop watching. The background job keeps running.')
@@ -605,7 +695,7 @@ def watch_job(directory=None):
     try:
         while True:
             try:
-                state = read_json(directory / 'status.json')
+                state = read_json(history)['status'] if history.is_file() else read_json(directory / 'status.json')
             except (OSError, ValueError):
                 state = {'state': 'starting'}
             try:
@@ -635,7 +725,9 @@ def watch_job(directory=None):
                 status_line('Job complete. All output checks passed.', 'COMPLETE')
                 if state.get('output'):
                     status_line(f'Output: {state["output"]}')
-                if state.get('total'):
+                if history.is_file():
+                    status_line(f'Completion record: {history}')
+                elif state.get('total'):
                     status_line(f'Batch report: {directory / "batch-report.json"}')
                 return 0
             pid = state.get('pid')
@@ -730,6 +822,12 @@ def worker(directory):
     finally:
         if os.name == 'nt':
             ctypes.windll.kernel32.SetThreadExecutionState(0x80000000)
+    # Failure to tidy up must not turn a verified successful encode into a failed job.
+    try:
+        archive_completed_job(directory)
+        schedule_job_cleanup(directory)
+    except Exception as error:
+        status_line(f'Job is complete, but automatic job-folder cleanup could not start: {error}', 'WARNING')
 
 
 def prompt_path(label):
@@ -875,6 +973,8 @@ def main():
     p.add_argument('--watch', action='store_true', help='Show live progress after starting the background batch.')
     p = sub.add_parser('_worker', help=argparse.SUPPRESS)
     p.add_argument('directory')
+    p = sub.add_parser('_cleanup', help=argparse.SUPPRESS)
+    p.add_argument('directory')
     args = vars(parser.parse_args())
     command = args.pop('command')
     if command == 'wizard':
@@ -916,6 +1016,8 @@ def main():
         else: run_batch(jobs)
     elif command == '_worker':
         worker(args['directory'])
+    elif command == '_cleanup':
+        cleanup_after_exit(args['directory'])
 
 
 if __name__ == '__main__':

@@ -7,6 +7,7 @@ __pycache__/
 # Downloaded lectures, generated media, and local job state
 downloads/
 jobs/
+job-history/
 validation/
 _temporary/
 *.mp4

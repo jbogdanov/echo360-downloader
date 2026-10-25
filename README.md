@@ -155,15 +155,15 @@ If the terminal cannot display the Windows keyboard checklist, a numbered versio
 
 **This workflow downloads all source streams of each selected lesson, with audio in each MP4.** It does not choose a camera/screen stream or merge automatically. Source previews are saved silently in each lesson folder. You can watch any source file directly, use **option 2** afterward to merge a pair, or prepare a merge batch with **option 4** once you have identified the source IDs for each lesson.
 
-The selection is saved in `jobs\<job-id>\job.json`. If a lesson fails, the batch records the error and continues with the remaining lessons. Use option 4 to retry the saved selection; completed downloads whose checksums still match are reused.
+While running, the selection is saved in `jobs\<job-id>\job.json`. After success, the temporary job folder is removed and the selection and results are kept in one file: `job-history\<job-id>.json`. If a lesson fails, the batch records the error and continues with the remaining lessons; failed-job folders are retained. Use option 4 with either saved batch file to rerun the selection. Completed downloads whose checksums still match are reused.
 
 ## Option 4: Run a saved batch
 
 ### Rerun a course selection
 
-1. Find the job folder printed when you started option 3: `jobs\<job-id>`.
+1. Find `job-history\<job-id>.json` for a successful batch, or `jobs\<job-id>\job.json` for a failed batch.
 2. Open `START.cmd` and choose **4**.
-3. At **Batch JSON path**, paste the full path to that folder's `job.json`.
+3. At **Batch JSON path**, paste the full path to that JSON file.
 4. Watch the background batch in the same console. It reuses verified source files and retries unfinished downloads.
 5. Review `batch-report.json` in the new job folder if any items fail.
 
@@ -197,7 +197,7 @@ During encoding, progress updates about once per second:
 
 1. Leave the monitor open to follow progress, or close it / press **Ctrl+C** to stop watching. The background worker continues.
 2. To reopen progress in a separate window, double-click **`WATCH.cmd`**. It shows the most recently started job.
-3. To watch a particular job, drag its folder or `STATUS.txt` onto `WATCH.cmd`.
+3. To watch a particular job, drag its folder or `STATUS.txt` onto `WATCH.cmd`. For a completed job, drag its `job-history\<job-id>.json` record onto the launcher instead. `WATCH.cmd` also finds the latest job after its temporary folder has been removed.
 4. Wait for the completion message before treating the output as ready. If the monitor reports an error, open `run.log` and, for batches, `batch-report.json` in that job's folder.
 
 **Option 1's initial download is still in the foreground:** keep its console open until downloading finishes. Closing it before the background merge starts interrupts that download.
@@ -234,7 +234,9 @@ Source counts vary. Option 3 uses automatic date/ID subfolders instead of `02`. 
 
 `SOURCE_PREVIEWS.jpg` shows separate inputs. A `.partial.mp4` is unfinished; use the final MP4 after successful verification. Keep `manifest.json` and verification reports with their videos so later runs can recognize completed downloads and merges.
 
-Temporary `.download.lock` and `*.mp4.lock` files protect active tasks from duplicate writers and are removed when the task releases them. After a merge and its verification succeed, an empty `*.ffmpeg.log` is deleted automatically. Logs containing errors, and logs from failed jobs, are retained for troubleshooting. Job status and history under `jobs/` remain available for monitoring and reruns.
+Temporary `.download.lock` and `*.mp4.lock` files protect active tasks from duplicate writers and are removed when the task releases them. After a merge and its verification succeed, an empty `*.ffmpeg.log` is deleted automatically. Logs containing errors, and logs from failed jobs, are retained for troubleshooting.
+
+Successful background jobs also remove their temporary `jobs\<job-id>` folder after the worker exits. One JSON completion record remains in `job-history\<job-id>.json`, containing the inputs, final status, and results. This keeps monitoring and batch reruns available without retaining progress logs and temporary status files. Active, failed, and interrupted jobs are kept in `jobs/`. Cleanup preserves any unexpected files you add to a job folder.
 
 ### Combined layout and synchronization
 
@@ -252,6 +254,8 @@ The combined file uses one input's audio track, so the shared lecture audio is n
 The two video timelines start together. Inputs must normally match in duration within two seconds. The toolkit does not detect or repair timing offsets between unrelated recordings. Existing black frames or missing-camera content remain in the output.
 
 ### Job files
+
+These files exist while a job runs and are retained if it fails. After success, its folder is replaced by the single completion record in `job-history/`.
 
 | File under `jobs/<job-id>/` | Purpose |
 |---|---|
@@ -387,7 +391,7 @@ Login-only institutional pages, DRM/encrypted streams, and HLS with separate med
 
 Validation recorded on **25 October 2026**, on Windows with Python 3.13, imageio-ffmpeg 0.6.0, Pillow 12.2.0, and bundled FFmpeg 7.1:
 
-- **40 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, wizard prompts, course discovery/selection, batch failure handling, live monitoring, and lock cleanup with concurrent processes.
+- **48 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, wizard prompts, course discovery/selection, batch failure handling, live monitoring, lock cleanup with concurrent processes, and completed-job cleanup.
 - Local HTTP integration downloaded two streams plus shared audio, muxed and verified the outputs, created source previews, and checked checksum-based reuse. A two-lesson download batch also completed successfully.
 - All eight source MP4s checked across four downloaded lessons contained AAC audio. Ten-second samples starting one minute into each file decoded with non-silent audio; this was a sample check, not a full listening review.
 - Metadata discovery succeeded for all four supplied public courses. The Windows checklist was exercised in a real console using Space/X, arrows, Page Down, and Enter.
@@ -395,6 +399,8 @@ Validation recorded on **25 October 2026**, on Windows with Python 3.13, imageio
 - Background monitoring was verified with eight- and sixty-second samples. Closing one monitor left the worker running; another monitor observed successful completion.
 - Setup worked from a path containing spaces and Estonian characters.
 - Cleanup checks verified that completed downloads and merges leave no lock files, successful merges remove empty FFmpeg logs, failed verification retains its log, and a competing process cannot remove an active owner's lock. Compatibility with locks held by older Windows workers was also checked.
+- Job cleanup tests covered retained completion records and batch inputs, reopening the monitor after cleanup, active/failed-job preservation, cleanup retries, and preserving unexpected user files.
+- A real three-second background merge completed, its temporary job folder was automatically removed, and the monitor reopened successfully from its completion record. Cleanup of read-only completed job files and folders was also tested on Windows.
 
 Run the reproducible offline tests from the toolkit folder:
 
@@ -406,4 +412,4 @@ Verification checks duration, video/audio presence, reading all media packets, a
 
 A full multi-hour batch was not repeated during these toolkit checks. The sample merge tests used the CPU; NVIDIA encoding uses the established FFmpeg settings from the earlier lecture queue. Support for every Echo360 deployment is not claimed.
 
-Downloaded media, local job logs, and validation samples are excluded from Git. A fresh clone contains the scripts, documentation, example configuration, and reproducible tests.
+Downloaded media, local job logs, completion history, and validation samples are excluded from Git. A fresh clone contains the scripts, documentation, example configuration, and reproducible tests.
