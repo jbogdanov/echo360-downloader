@@ -97,7 +97,7 @@ If the lesson contains only one video stream, downloading completes without a me
 
 ### Choose an encoder
 
-Yes/No and encoder selectors use arrow keys and Enter, with the current choice highlighted in green and keyboard controls in a bottom footer. **Q / Esc** cancels before starting a job. In consoles without keyboard navigation, the text prompts remain available: `[yes] no` accepts Enter for yes, and the encoder prompt accepts `auto`, `cpu`, or `nvenc`.
+Yes/No and encoder selectors use arrow keys and Enter, with the current choice highlighted in green and keyboard controls in a bottom footer. Key names are blue; descriptions use the default color. **Q / Esc** cancels before starting a job. In consoles without keyboard navigation, the text prompts remain available: `[yes] no` accepts Enter for yes, and the encoder prompt accepts `auto`, `cpu`, or `nvenc`.
 
 | Choice | Behavior |
 |---|---|
@@ -119,7 +119,7 @@ Use this after a course batch download, or whenever you already have both source
 6. Use the arrow keys to choose **Auto**, **CPU**, or **NVIDIA (NVENC)**, then press Enter. **Auto** is selected by default.
 7. Watch the background merge's progress. When all checks pass, open the output MP4 in your video player.
 
-Keyboard controls appear on one line above the file list, with blue key names and descriptions in the default color, separated from the current path by a blank line. The helper text has a blank line before and after it. Use **Backspace** or the **[..] Parent folder** row to go up, **Page Up / Page Down** to scroll, and **Home / End** to jump to the first / last entry. Press **P** to paste a folder or video path, including a path on another drive; quotes copied from File Explorer are accepted. **Q / Esc** cancels without starting a merge. The browser shows folders and common video formats, including MP4, MKV, MOV, and WebM.
+Keyboard controls stay on one line in a fixed bottom footer, separated from the file list by a divider, with blue key names and descriptions in the default color. The helper text has a blank line before and after it. Use **Backspace** or the **[..] Parent folder** row to go up, **Page Up / Page Down** to scroll, and **Home / End** to jump to the first / last entry. Press **P** to paste a folder or video path, including a path on another drive; quotes copied from File Explorer are accepted. **Q / Esc** cancels without starting a merge. The browser shows folders and common video formats, including MP4, MKV, MOV, and WebM.
 
 The result is saved beside the large input. Downloaded `source_<ID>.mp4` files use their IDs in the output name; other filenames use their stems, such as `combined_large-teacher_small-slides.mp4`. Inputs and output must be different files; an existing final output is not overwritten. To reverse the layout, run option 2 again with the videos swapped; the output name follows that order.
 

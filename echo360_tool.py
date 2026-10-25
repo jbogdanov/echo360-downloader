@@ -897,7 +897,10 @@ def choose_keyboard_option(title, options):
                 line = (f'> [{label}]' if index == cursor else f'  {label}')[:width]
                 rows.append(colored(line, '92', sys.stdout) if index == cursor else line)
             rows.extend([''] * max(0, lines - 2 - len(rows)))
-            rows.extend(['-' * width, 'Arrow keys: move | Enter: choose | Q/Esc: cancel'[:width]])
+            controls = re.sub(r'(^| \| )([^:]+)(?=:)',
+                              lambda match: match[1] + colored(match[2], '94', sys.stdout),
+                              'Arrow keys: move | Enter: choose | Q/Esc: cancel'[:width])
+            rows.extend(['-' * width, controls])
             print('\033[H\033[2J' + '\n'.join(rows), end='', flush=True)
             key = read_windows_key()
             if key in ('up', 'left'):
