@@ -122,6 +122,31 @@ class WizardTests(unittest.TestCase):
         self.assertIn('> [ERROR] Something failed', output.getvalue())
         self.assertNotIn('\033[', output.getvalue())
 
+    def test_local_merge_names_output_without_prompt(self):
+        folder = tool.HOME / 'downloads' / 'Course' / '02'
+        for large_id, small_id in ((2, 1), (1, 2)):
+            with self.subTest(large_id=large_id), \
+                    patch('builtins.input', side_effect=[
+                        '2', f'"{folder / f"source_{large_id}.mp4"}"',
+                        str(folder / f'source_{small_id}.mp4'), '']) as prompts, \
+                    patch.object(tool, 'start_background') as background, \
+                    patch.object(tool, 'watch_job', return_value=0), \
+                    patch('sys.stdout', new_callable=io.StringIO) as output:
+                tool.wizard()
+                expected = str(folder / f'combined_large-{large_id}_small-{small_id}.mp4')
+                options = background.call_args.args[0]['options']
+                self.assertEqual(options['output'], expected)
+                self.assertEqual(options['encoder'], 'auto')
+                self.assertEqual(prompts.call_count, 4)
+                self.assertFalse(any('output' in call.args[0].lower() for call in prompts.call_args_list))
+                self.assertIn(expected, output.getvalue())
+
+    def test_local_merge_with_custom_names_uses_large_input_folder(self):
+        large = tool.HOME / 'lectures' / 'teacher.mp4'
+        small = tool.HOME / 'screens' / 'slides.mp4'
+        self.assertEqual(tool.local_merge_output(large, small),
+                         large.parent / 'combined_large-teacher_small-slides.mp4')
+
 
 if __name__ == '__main__':
     unittest.main()

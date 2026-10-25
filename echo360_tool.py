@@ -141,6 +141,16 @@ def slug(value):
     return result
 
 
+def local_merge_output(large, small):
+    """Name the merge beside the large input, preserving downloaded source IDs."""
+    def label(path):
+        stem = Path(path).stem
+        match = re.fullmatch(r'source_(\d+)', stem, re.IGNORECASE)
+        return match.group(1) if match else slug(stem)[:60].rstrip(' .')
+
+    return Path(large).parent / f'combined_large-{label(large)}_small-{label(small)}.mp4'
+
+
 def duration_seconds(value):
     if isinstance(value, (float, int)):
         return float(value)
@@ -963,9 +973,10 @@ def wizard():
     elif mode == '2':
         large_path = prompt_path('LARGE / LEFT video path: ')
         small_path = prompt_path('SMALL / RIGHT video path: ')
-        output = prompt_path('New output MP4 path: ')
+        output = str(local_merge_output(large_path, small_path))
     else:
         raise ValueError('Choose 1, 2, 3, or 4.')
+    status_line(f'Output: {output}')
     encoder = input('Encoder: auto, nvenc, or cpu [auto]: ').strip() or 'auto'
     if encoder not in ('auto', 'nvenc', 'cpu'):
         raise ValueError('Encoder must be auto, nvenc, or cpu.')

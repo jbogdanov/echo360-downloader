@@ -113,11 +113,11 @@ Use this after a course batch download, or whenever you already have both source
 2. Open `START.cmd` and choose **2**.
 3. At **LARGE / LEFT video path**, paste the full path to the large source, for example `C:\Videos\Echo360\Course\02\source_2.mp4`.
 4. At **SMALL / RIGHT video path**, paste the full path to the other source, such as `C:\Videos\Echo360\Course\02\source_1.mp4`.
-5. At **New output MP4 path**, enter a new filename, such as `C:\Videos\Echo360\Course\02\teacher-large.mp4`.
+5. The output path is generated automatically and displayed. With the example inputs above, it is `C:\Videos\Echo360\Course\02\combined_large-2_small-1.mp4`, just like option 1.
 6. Choose `auto`, `nvenc`, or `cpu`, or press Enter for `auto`.
 7. Watch the background merge's progress. When all checks pass, open the output MP4 in your video player.
 
-Paths copied with quotes from File Explorer are accepted. Inputs and output must be different files; an existing final output is not overwritten. To reverse the layout, run option 2 again with the input paths swapped and a new output filename.
+Paths copied with quotes from File Explorer are accepted. The result is saved beside the large input. Downloaded `source_<ID>.mp4` files use their IDs in the output name; other filenames use their stems, such as `combined_large-teacher_small-slides.mp4`. Inputs and output must be different files; an existing final output is not overwritten. To reverse the layout, run option 2 again with the input paths swapped; the output name follows that order.
 
 Option 2 asks for **file paths**, not source IDs, and does not automatically open a preview. To generate a comparison image for other local files, use the advanced `preview` command below.
 
@@ -181,7 +181,7 @@ You can also drag the saved batch file onto **`RUN_BATCH.cmd`**. Wait for the pr
 
 For an item that should only download, set `"action": "download"` and omit `large_source`, `small_source`, and `encoder`. An omitted `action` means download and combine. The saved selection from option 3 already contains download-only items.
 
-The report lists download-only results under `downloads`, merged results under `files`, and errors under `failures`. A failed item does not prevent later items from running. Reruns reuse verified completed files. To change a completed layout, choose a fresh lesson/output destination or use option 2 with a new output filename.
+The report lists download-only results under `downloads`, merged results under `files`, and errors under `failures`. A failed item does not prevent later items from running. Reruns reuse verified completed files. To reverse a completed layout, use option 2 with the input paths swapped. For a custom output filename, use the advanced `combine` command below.
 
 ## 3. Monitor a running job
 
@@ -224,7 +224,7 @@ downloads/
       combined_large-2_small-1.ffmpeg.log (only kept for errors/failed jobs)
 ```
 
-Source counts vary. Option 3 uses automatic date/ID subfolders instead of `02`. Option 2 writes to the exact output path you entered.
+Source counts vary. Option 3 uses automatic date/ID subfolders instead of `02`. Option 2 automatically names the output and saves it beside the large input.
 
 1. Open `source_1.mp4` or `source_2.mp4` to watch that stream with the lecture audio, or open the combined MP4 to watch both pictures together. A separate audio file is not needed.
 2. Confirm playback and audio, including a point near the end.
@@ -366,7 +366,7 @@ Login-only institutional pages, DRM/encrypted streams, and HLS with separate med
 | Numbered selection appears instead of arrow-key controls | Use numbers/ranges, or open `START.cmd` in a supported Windows console. |
 | Encrypted/protected or unsupported HLS layout | This recording format is not implemented. Use Echo360's official download option if available. |
 | Existing file is unverified or changed | Move that file aside before retrying. Keep completed files together with their manifest or verification report. |
-| Output already exists | Choose a new output filename in option 2. A batch can reuse a completed merge when its verification report and checksum match. |
+| Output already exists | Move or rename the existing result, or use the advanced `combine` command with a different output path. A batch can reuse a completed merge when its verification report and checksum match. |
 | Durations differ | Confirm both files belong to the same lesson. Use the advanced shorter-input override only when appropriate. |
 | No signal / black picture | Inspect the source MP4 at several points; the original recording may lack a camera or screen signal. |
 | NVENC unavailable or busy | Wait for other GPU work to finish, choose `cpu`, or use `auto`. |
@@ -392,7 +392,7 @@ Login-only institutional pages, DRM/encrypted streams, and HLS with separate med
 
 Validation recorded on **25 October 2026**, on Windows with Python 3.13, imageio-ffmpeg 0.6.0, Pillow 12.2.0, and bundled FFmpeg 7.1:
 
-- **48 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, wizard prompts, course discovery/selection, batch failure handling, live monitoring, lock cleanup with concurrent processes, and completed-job cleanup.
+- **50 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, wizard prompts and automatic output naming, course discovery/selection, batch failure handling, live monitoring, lock cleanup with concurrent processes, and completed-job cleanup.
 - Local HTTP integration downloaded two streams plus shared audio, muxed and verified the outputs, created source previews, and checked checksum-based reuse. A two-lesson download batch also completed successfully.
 - All eight source MP4s checked across four downloaded lessons contained AAC audio. Ten-second samples starting one minute into each file decoded with non-silent audio; this was a sample check, not a full listening review.
 - Metadata discovery succeeded for all four supplied public courses. The Windows checklist was exercised in a real console using Space/X, arrows, Page Down, and Enter.
