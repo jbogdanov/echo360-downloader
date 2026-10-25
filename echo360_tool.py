@@ -911,11 +911,11 @@ def choose_keyboard_option(title, options):
     return options[cursor][1]
 
 
-def confirm_merge():
+def confirm_merge(question='Merge the downloaded streams into one video?'):
     if windows_terminal():
-        return choose_keyboard_option('Merge the downloaded streams into one video?', [('Yes', True), ('No', False)])
+        return choose_keyboard_option(question, [('Yes', True), ('No', False)])
     while True:
-        answer = input('Merge the downloaded streams into one video? [yes] no: ').strip().lower()
+        answer = input(f'{question} [yes] no: ').strip().lower()
         if answer in ('', 'y', 'yes'):
             return True
         if answer in ('n', 'no'):
@@ -966,7 +966,7 @@ def course_wizard():
     jobs = [dict(action='download', lesson_url=row['lesson_url'], public_course_url=course,
                  title=row['title'], name=default_name(row['lesson_url']), output_root=str(output_root)) for row in selected]
     status_line(f'Each lesson gets its own subfolder in: {output_root}')
-    if confirm_merge():
+    if confirm_merge("Merge each selected lesson's streams into its own video?"):
         status_line('Reading source IDs from the first selected lesson; no previews will be created.', 'BATCH')
         _, video = player(selected[0]['lesson_url'], course)
         tracks, _ = select_tracks(video)

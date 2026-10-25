@@ -194,6 +194,7 @@ class CourseTests(unittest.TestCase):
             player.assert_called_once_with(rows[0]['lesson_url'], course)
             preview.assert_not_called()
             labels = [call.args[0] for call in prompts.call_args_list]
+            self.assertIn("Merge each selected lesson's streams into its own video? [yes] no: ", labels)
             self.assertEqual(sum('LARGE' in label for label in labels), 1)
             self.assertEqual(sum('SMALL' in label for label in labels), int(len(ids) > 2))
             self.assertIn(f'Source ID for the LARGE video on the LEFT for all lessons ({", ".join(map(str, ids))}): ', labels)
