@@ -24,7 +24,7 @@ class WatchTests(unittest.TestCase):
     def test_progress_updates_until_verified_completion(self):
         self.state(state='running', phase='encoding', pid=123, percent=25,
                    speed_x=2.5, eta_seconds=90, encoder='cpu', item=1, total=2)
-        (self.folder / 'run.log').write_text('> [ENCODE] Example output\n> [PROGRESS] 25%\n', encoding='utf-8')
+        (self.folder / 'run.log').write_text('> [PROGRESS] Downloaded 10.0 MiB / 100.0 MiB\n> [ENCODE] Example output\n> [PROGRESS] 25%\n', encoding='utf-8')
         def finish(_):
             self.state(state='complete', output='result.mp4')
         with patch('sys.stdout', self.output), patch.object(tool, 'process_alive', return_value=True), \
@@ -34,6 +34,7 @@ class WatchTests(unittest.TestCase):
         self.assertIn('Job 1/2 | [#####---------------]', text)
         self.assertIn('25.0% | 2.5x | ETA 00:01:30', text)
         self.assertIn('[ENCODE] Example output', text)
+        self.assertIn('Downloaded 10.0 MiB / 100.0 MiB', text)
         self.assertNotIn('[PROGRESS] 25%\n', text)
         self.assertIn('All output checks passed', text)
         self.assertIn('Output: result.mp4', text)

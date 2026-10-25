@@ -50,6 +50,21 @@ class DownloadIntegration(unittest.TestCase):
                     with patch.object(tool, 'fetch_file', side_effect=AssertionError('Cache must avoid full transfers')):
                         _, reused = tool.download('https://example.org/lesson/test/classroom', name='HTTP test', output_root=root/'outputs')
                         self.assertEqual(reused['streams'], manifest['streams'])
+                    # Exercise selected-lesson batches with real HTTP transfers
+                    # and media checks, without encoding combined files.
+                    jobs = [dict(action='download', lesson_url=f'https://example.org/lesson/{name}/classroom',
+                                 name=name, output_root=str(root/'batch')) for name in ('selected-a', 'selected-c')]
+                    with patch('sys.stdout', new_callable=io.StringIO) as batch_console:
+                        report = tool.run_batch(jobs, root/'job')
+                    self.assertEqual(len(report['downloads']), 2)
+                    self.assertEqual(report['failures'], [])
+                    self.assertEqual(report['files'], [])
+                    self.assertNotIn('SOURCE_PREVIEWS.jpg', batch_console.getvalue())
+                    for row in report['downloads']:
+                        self.assertEqual(len(row['streams']), 2)
+                        self.assertTrue((Path(row['folder'])/'source_1.mp4').exists())
+                        self.assertTrue((Path(row['folder'])/'source_2.mp4').exists())
+                    self.assertFalse((root/'batch'/'unselected-b').exists())
             finally:
                 server.shutdown()
                 server.server_close()

@@ -19,6 +19,7 @@ import urllib.error
 import uuid
 
 import imageio_ffmpeg
+from course_picker import load_course, choose_lessons, lesson_label
 
 HOME = Path(__file__).resolve().parent
 FF = imageio_ffmpeg.get_ffmpeg_exe()
@@ -595,7 +596,7 @@ def watch_job(directory=None):
                 log_pending = lines.pop()
                 for line in lines:
                     line = line.rstrip('\r')
-                    if not line or line.startswith('> [PROGRESS]'):
+                    if not line or re.fullmatch(r'> \[PROGRESS\] [\d.]+%', line):
                         continue
                     clear_line()
                     match = re.match(r'^> \[([A-Z]+)\] (.*)$', line)
@@ -648,12 +649,22 @@ def watch_job(directory=None):
 
 def run_batch(jobs, job_dir=None):
     results = []
+    downloads = []
     failures = []
     for number, job in enumerate(jobs, 1):
         update_status(job_dir, phase='downloading', item=number, total=len(jobs), percent=None,
                       output=None, encoder=None, speed_x=None, eta_seconds=None)
         try:
-            folder, manifest = download(job['lesson_url'], job.get('public_course_url'), job.get('name'), job.get('output_root'))
+            action = job.get('action', 'combine')
+            if action not in ('download', 'combine'):
+                raise ValueError(f'Unknown batch action: {action}')
+            status_line(f'Item {number}/{len(jobs)}: {job.get("title") or job.get("name") or job["lesson_url"]}', 'BATCH')
+            folder, manifest = download(job['lesson_url'], job.get('public_course_url'), job.get('name'), job.get('output_root'),
+                                        announce_preview=action != 'download')
+            if action == 'download':
+                downloads.append(dict(folder=str(folder), lesson_url=job['lesson_url'], streams=manifest['streams']))
+                status_line(f'Item {number}: all source videos downloaded and verified.', 'COMPLETE')
+                continue
             mapping = {r['source_id']: folder / r['file'] for r in manifest['streams']}
             big, small = int(job['large_source']), int(job['small_source'])
             if big not in mapping or small not in mapping or big == small:
@@ -668,7 +679,7 @@ def run_batch(jobs, job_dir=None):
         except Exception as exc:
             failures.append(dict(item=number, lesson=job.get('lesson_url'), error=str(exc)))
             status_line(f'Item {number} failed: {exc}', 'ERROR')
-    report = dict(files=results, failures=failures)
+    report = dict(files=results, downloads=downloads, failures=failures)
     if job_dir:
         write_json(Path(job_dir) / 'batch-report.json', report)
     if failures:
@@ -738,11 +749,36 @@ def wizard_download(lesson, name, output_root):
         return download(lesson, course_url=course, name=name, output_root=output_root, announce_preview=False)
 
 
+def course_wizard():
+    status_line('URL format: https://echo360.org.uk/section/<course-id>/public')
+    course = input('Public course/section URL: ').strip()
+    status_line('Loading course lessons...', 'COURSE')
+    lessons = load_course(course)
+    status_line(f'{len(lessons)} lessons; {sum(row["available"] for row in lessons)} available recordings.', 'COURSE')
+    selected = choose_lessons(lessons)
+    if not selected:
+        status_line('No lessons selected. No batch was started.')
+        return
+    status_line(f'{len(selected)} lessons selected:', 'BATCH')
+    for row in selected:
+        status_line(f'[X] {lesson_label(row)}')
+    course_name = slug(input('Course folder name [Echo360]: ').strip() or 'Echo360')
+    parent = input(f'Download root folder [Enter: {HOME / "downloads"}]: ').strip().strip('"')
+    output_root = (Path(parent).expanduser().resolve() if parent else HOME / 'downloads') / course_name
+    jobs = [dict(action='download', lesson_url=row['lesson_url'], public_course_url=course,
+                 title=row['title'], name=default_name(row['lesson_url']), output_root=str(output_root)) for row in selected]
+    status_line(f'Each lesson gets its own subfolder in: {output_root}')
+    status_line('Downloading all source streams. Use option 2 afterward to combine a pair of local videos.')
+    return watch_job(start_background({'type': 'batch', 'jobs': jobs}))
+
+
 def wizard():
     print(colored(BANNER, '36', sys.stdout))
-    print('1. Download a lesson (optional merge)\n2. Combine two existing local video files\n3. Run a batch JSON file in the background\n')
-    mode = input('Choose 1, 2, or 3 [1]: ').strip() or '1'
+    print('1. Download a lesson (optional merge)\n2. Combine two existing local video files\n3. Select lessons from a public course and batch download\n4. Run a saved batch JSON file\n')
+    mode = input('Choose 1, 2, 3, or 4 [1]: ').strip() or '1'
     if mode == '3':
+        return course_wizard()
+    if mode == '4':
         config = read_json(prompt_path('Batch JSON path: '))
         return watch_job(start_background({'type': 'batch', 'jobs': config['jobs']}))
     if mode == '1':
@@ -778,7 +814,7 @@ def wizard():
         small_path = prompt_path('SMALL / RIGHT video path: ')
         output = prompt_path('New output MP4 path: ')
     else:
-        raise ValueError('Choose 1, 2, or 3.')
+        raise ValueError('Choose 1, 2, 3, or 4.')
     encoder = input('Encoder: auto, nvenc, or cpu [auto]: ').strip() or 'auto'
     if encoder not in ('auto', 'nvenc', 'cpu'):
         raise ValueError('Encoder must be auto, nvenc, or cpu.')

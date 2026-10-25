@@ -1,7 +1,7 @@
 @echo off
 cd /d "%~dp0"
 if "%~1"=="" (
-  echo Drag your batch JSON file onto this launcher, or use START.cmd option 3.
+  echo Drag your batch JSON file onto this launcher, or use START.cmd option 4.
   pause
   exit /b 1
 )

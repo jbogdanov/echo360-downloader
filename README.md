@@ -1,6 +1,6 @@
 # echo360-downloader
 
-Download a specific public Echo360 lecture, identify its video streams, choose which one should be large, and combine them into one offline MP4. Everything runs on your own computer.
+Download a specific public Echo360 lecture or select several lessons from a public course using a console checklist. Identify the video streams, choose which one should be large, and combine a pair into one offline MP4. Everything runs on your own computer.
 
 This project was fully created with Codex GPT-6 Astra.
 
@@ -22,6 +22,30 @@ The result is named, for example, `combined_large-2_small-1.mp4` and is saved be
 
 If a recording has only one video stream, it is downloaded normally. The wizard then stops without manufacturing a second stream.
 
+## Select lessons from a public course (option 3)
+
+1. Double-click **`START.cmd`** and choose **3 — Select lessons from a public course and batch download**.
+2. Paste the public section URL, such as `https://echo360.org.uk/section/<course-id>/public`, using your actual course ID.
+3. The course's lessons appear in the same console, ordered by date. Dates and times use the course's local timezone.
+4. Use **Up/Down** to move and **Space** or **X** to toggle a lesson's `[X]` mark. **A** selects all available recordings; **N** clears the selection. Use **Page Up/Page Down**, **Home**, or **End** to navigate longer lists. **Q** or **Esc** cancels.
+5. Press **Enter** when your selection is ready, then enter the course folder name and download root.
+6. The selected lessons download sequentially in a background batch, with live status in the same window. Each lesson gets a date/ID subfolder containing all available source MP4s with audio.
+
+```text
+  [X]   1. 2026-09-01 14:00 (Europe/Tallinn) | Lecture 1
+> [ ]   2. 2026-09-01 16:00 (Europe/Tallinn) | Practical session
+  [X]   3. 2026-09-08 14:00 (Europe/Tallinn) | Lecture 2
+  [-]   4. 2026-12-01 14:00 (Europe/Tallinn) | Lecture 3 -- Not recorded yet
+```
+
+Rows marked `[-]` cannot be selected: there is no available recording yet, it is processing, or it is currently live. Selecting all skips these rows. No lessons are selected initially. An empty selection does not start a batch.
+
+The arrow-key checklist is supported in Windows consoles. Other terminals fall back to a numbered checklist: type `1,3,5-7` to toggle those rows, `a` for all available, `n` for none, Enter to continue, or `q` to cancel. Both versions display `[X]` beside selected lessons.
+
+This option **downloads separate source streams**. To merge a downloaded pair, use option **2** and choose which local file should be large. The course picker does not infer lecturer/screen roles or reuse one layout across different lessons. Source previews are saved silently in each lesson folder.
+
+The selected batch is saved as `jobs/<job-id>/job.json`. To retry it, choose option **4** and provide that file, or drag it onto `RUN_BATCH.cmd`. Verified downloads are reused. A failed lesson is recorded in `batch-report.json`; the remaining selected lessons continue.
+
 ## Installation on another Windows computer
 
 Requirements:
@@ -31,7 +55,7 @@ Requirements:
 - Enough free disk space for both source streams, the combined MP4, and temporary files.
 - An NVIDIA GPU is optional. CPU encoding is supported.
 
-Copy the toolkit's scripts, `examples`, `tests`, and documentation to the new computer. Do not copy the `.venv` folder: Python virtual environments are specific to their installation path. Double-click **`SETUP.cmd`** once, then use **`START.cmd`**.
+Copy the toolkit's scripts (including both `echo360_tool.py` and `course_picker.py`), `examples`, `tests`, and documentation to the new computer. Do not copy the `.venv` folder: Python virtual environments are specific to their installation path. Double-click **`SETUP.cmd`** once, then use **`START.cmd`**.
 
 Setup creates a private `.venv` environment and installs the exact package versions in `requirements.txt`. `imageio-ffmpeg` supplies FFmpeg; a separate FFmpeg installation is not required. Pillow creates preview contact sheets. Setup needs no administrator privileges and does not change the system's permanent PowerShell execution policy.
 
@@ -173,7 +197,7 @@ NVENC uses preset `p4` and CQ 21. Hardware performance varies. Run a short trial
 2. Replace the placeholder links and names.
 3. Set `large_source` and `small_source` separately for every lecture. Use the interactive/download workflow first if you have not inspected the streams.
 4. Optionally add `"output_root": "C:/Videos/Echo360"` to each job. JSON accepts forward slashes; with backslashes, write them as `\\`.
-5. Drag your JSON file onto **`RUN_BATCH.cmd`**, or choose **3** in `START.cmd`.
+5. Drag your JSON file onto **`RUN_BATCH.cmd`**, or choose **4** in `START.cmd`.
 
 Equivalent command:
 
@@ -183,7 +207,9 @@ Equivalent command:
 
 The batch processes items sequentially: download, verify, combine, verify, then the next item. A failed item is recorded and the batch continues to the next one. The final `batch-report.json` lists successes and failures. Rerunning the same batch reuses checksum-matching downloads and completed combined files. Do not edit a batch's source roles while reusing the same output name; choose a new output when changing settings.
 
-A batch needs an explicit list of lesson URLs. It does not enumerate course pages, filter by start time, or infer which source contains slides.
+For a download-only item, set `"action": "download"` and omit `large_source`, `small_source`, and `encoder`. Existing jobs without an `action` field retain their download-and-combine behavior. `batch-report.json` records downloaded lessons under `downloads`, merged files under `files`, and unsuccessful items under `failures`.
+
+Use option **3** to build a download batch from a public course checklist without writing JSON. The toolkit does not automatically filter by start time or infer which source contains slides.
 
 ## Background status, stopping, and recovery
 
@@ -258,6 +284,7 @@ On Windows, the toolkit requests **Always keep on this device** using `attrib +P
 ## Included files
 
 - `echo360_tool.py`: downloader, preview generator, combiner, wizard, batch processor, and background worker.
+- `course_picker.py`: public course discovery and the console lesson checklist.
 - `START.cmd`: interactive workflow.
 - `WATCH.cmd`: live status for the latest job, or a job folder dropped onto it.
 - `SETUP.cmd`, `setup.ps1`, `requirements.txt`: private Python environment and dependencies.
@@ -266,6 +293,7 @@ On Windows, the toolkit requests **Always keep on this device** using `attrib +P
 - `tests/test_download_integration.py`: local HTTP download, audio muxing, verification, and cache reuse tests.
 - `tests/test_wizard.py`: folder ordering, optional merging, source selection, and access fallback tests.
 - `tests/test_watch.py`: live progress, completion, errors, interrupted monitoring, and job selection tests.
+- `tests/test_course_picker.py`: syllabus groups, availability, lesson selection, and download-only batch tests.
 
 Run the offline tests with:
 
@@ -280,8 +308,11 @@ For help on any command, append `--help`, for example `echo360_tool.py combine -
 Validated on 25 October 2026, Windows, Python 3.13, with the private environment created by `setup.ps1`.
 
 - Setup succeeded from a folder whose path includes spaces and Estonian characters. Dependencies: imageio-ffmpeg 0.6.0 and Pillow 12.2.0; bundled FFmpeg 7.1.
-- Twenty-two automated tests passed. They cover duration parsing, highest-resolution playlist selection, relative URLs, rejecting encrypted/unsupported layouts, source IDs independent of array order, protecting input files, the HTTP download integration, and the interactive folder/merge/source-selection flow, including public-session fallback, preview announcements after acceptance, and plain-text redirected logs. Monitor tests cover progress updates, success and failure reporting, dead workers, Ctrl+C without changing worker status, and latest-job selection.
+- Thirty-seven automated tests passed. They cover duration parsing, highest-resolution playlist selection, relative URLs, rejecting encrypted/unsupported layouts, source IDs independent of array order, protecting input files, the HTTP download integration, and the interactive folder/merge/source-selection flow, including public-session fallback, preview announcements after acceptance, and plain-text redirected logs. Monitor tests cover progress updates, success and failure reporting, dead workers, Ctrl+C without changing worker status, and latest-job selection. Course tests cover session reuse, grouped lessons, availability, keyboard and numbered selections, cancellation, selected-only batches, failure continuation, and compatibility with existing merge jobs.
 - The integration test generated two short video-only files and separate AAC audio, served them over local HTTP, downloaded and muxed both streams, verified playback, generated a contact sheet, and confirmed checksum-based reuse without another full transfer. Test media was temporary.
+- The HTTP integration also downloaded a two-lesson batch into separate folders, verified both source streams per lesson, and produced a successful batch report without merging.
+- Public course discovery was checked against all four supplied course links: DevOps returned 48 lessons / 24 available recordings, ICA0002 64 / 16, ICS0020 32 / 16, and MEM5260 13 / 13. Only metadata was fetched. Counts reflect this validation date.
+- The Windows console checklist was exercised in a real terminal: Space/X marking, arrow navigation, Page Down, and Enter returned exactly the selected rows and restored the original console screen.
 - A real public Echo360 lesson was inspected using a fresh public course session. Both video playlists and the audio playlist resolved successfully. Small HTTP range requests returned valid MP4 headers for all three tracks. Evidence: `validation/public-session-check.json`. This check did not redownload the full lecture.
 - Two detached background jobs successfully combined existing real lecture files into three-second samples, one with the teacher large and one with the computer large. Both jobs reached `complete`, including packet reads and sample decoding. Both outputs contain H.264 video at 1760 × 720 and AAC audio.
 - The second background job used the toolkit's private Python environment. The launcher returned before encoding completed. CPU encoding was used for these tests so the pre-existing course encoding queue could continue using the GPU.
