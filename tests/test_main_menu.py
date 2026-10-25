@@ -79,7 +79,7 @@ class MainMenuTests(unittest.TestCase):
         value, output = self.choose_prompt(tool.confirm_merge, ['right', 'enter'])
         self.assertIs(value, False)
         self.assertIn('> [No]', output)
-        self.assertIn('Combine the downloaded streams into one video? No', output)
+        self.assertIn('Merge the downloaded streams into one video? No', output)
 
     def test_encoder_arrows_map_labels_to_worker_values(self):
         for keys, expected in [(['enter'], 'auto'), (['down', 'enter'], 'cpu'),

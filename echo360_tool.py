@@ -1,4 +1,4 @@
-"""Standalone Windows-first Echo360 downloader and two-stream video combiner."""
+"""Standalone Windows-first Echo360 downloader and two-stream video merging tool."""
 import argparse
 from contextlib import contextmanager
 import ctypes
@@ -33,7 +33,7 @@ BANNER = r'''
   |_____\____|_| |_|\___/|____/  \___/ \___/
 
                  R I P P E R
-       Download. Preview. Choose. Combine.
+       Download. Preview. Choose. Merge.
 '''
 for stream in (sys.stdout, sys.stderr):
     if hasattr(stream, 'reconfigure'):
@@ -924,9 +924,9 @@ def choose_keyboard_option(title, options):
 
 def confirm_merge():
     if windows_terminal():
-        return choose_keyboard_option('Combine the downloaded streams into one video?', [('Yes', True), ('No', False)])
+        return choose_keyboard_option('Merge the downloaded streams into one video?', [('Yes', True), ('No', False)])
     while True:
-        answer = input('Combine the downloaded streams into one video? [yes] no: ').strip().lower()
+        answer = input('Merge the downloaded streams into one video? [yes] no: ').strip().lower()
         if answer in ('', 'y', 'yes'):
             return True
         if answer in ('n', 'no'):
@@ -993,13 +993,13 @@ def course_wizard():
             job.update(action='combine', large_source=big, small_source=small, encoder=encoder)
         status_line('Each lesson will download and merge in sequence. Lessons missing a chosen source will report an error; the batch continues.')
     else:
-        status_line('Downloading all source streams. Use option 2 afterward to combine a pair of local videos.')
+        status_line('Downloading all source streams. Use option 2 afterward to merge a pair of local videos.')
     return watch_job(start_background({'type': 'batch', 'jobs': jobs}))
 
 
 def choose_main_menu():
     options = ['Download a lesson (optional merge)',
-               'Combine two existing local video files',
+               'Merge two existing local video files',
                'Select lessons from a public course and batch download (optional merge)',
                'Run a saved batch JSON file']
     if not windows_terminal():
@@ -1055,7 +1055,7 @@ def wizard():
         folder, manifest = wizard_download(lesson, name, output_root)
         mapping = {r['source_id']: str(folder / r['file']) for r in manifest['streams']}
         if len(mapping) < 2:
-            status_line('Only one stream is available. Download is complete; there is no second stream to combine.', 'COMPLETE')
+            status_line('Only one stream is available. Download is complete; there is no second stream to merge.', 'COMPLETE')
             return
         if not confirm_merge():
             status_line(f'Download complete. Source videos are saved in: {folder}', 'COMPLETE')

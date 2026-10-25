@@ -8,10 +8,10 @@
   |_____\____|_| |_|\___/|____/  \___/ \___/
 
                  R I P P E R
-       Download. Preview. Choose. Combine.
+       Download. Preview. Choose. Merge.
 ```
 
-Download public Echo360 lectures for offline viewing. Choose a single lesson or select several lessons from a course, then optionally combine two video streams into one MP4 with a large video on the left and a smaller video on the right.
+Download public Echo360 lectures for offline viewing. Choose a single lesson or select several lessons from a course, then optionally merge two video streams into one MP4 with a large video on the left and a smaller video on the right.
 
 Each downloaded source MP4 includes audio and can be watched independently. Merging is optional; it puts both pictures into one video with a single audio track.
 
@@ -36,7 +36,7 @@ Use **Up / Down** to move the `>` marker, then press **Enter** to open the selec
 Up/Down: move | Enter: choose | Q/Esc: quit
 
 > Download a lesson (optional merge)
-  Combine two existing local video files
+  Merge two existing local video files
   Select lessons from a public course and batch download (optional merge)
   Run a saved batch JSON file
 ```
@@ -44,7 +44,7 @@ Up/Down: move | Enter: choose | Q/Esc: quit
 | You want to… | Choose |
 |---|---|
 | Download one recording and optionally merge its streams | [Option 1](#option-1-download-one-lesson-and-optionally-merge) |
-| Merge two videos already on your computer | [Option 2](#option-2-combine-two-local-videos) |
+| Merge two videos already on your computer | [Option 2](#option-2-merge-two-local-videos) |
 | Mark several lessons with `[X]`, download them, and optionally merge with one layout for all | [Option 3](#option-3-select-course-lessons-and-batch-download) |
 | Rerun a saved selection or use a prepared download/merge batch | [Option 4](#option-4-run-a-saved-batch) |
 
@@ -85,7 +85,7 @@ Follow these prompts in order:
 5. At **Download root folder**, press Enter for the toolkit's `downloads` folder, or enter an absolute path such as `C:\Videos\Echo360`. With the example names and default root, the destination is `downloads\Course\02`.
 6. If **Public course/section URL** appears, paste that course's public link. Visiting it establishes the viewing session needed by some lessons.
 7. Wait while every available source stream downloads at its highest listed resolution and receives the shared audio. **Keep this console open during this download stage.**
-8. At **Combine the downloaded streams into one video?**, **Yes** is selected by default. Press **Enter** to merge, or use the arrow keys to select **No** and press Enter to finish with separate MP4s.
+8. At **Merge the downloaded streams into one video?**, **Yes** is selected by default. Press **Enter** to merge, or use the arrow keys to select **No** and press Enter to finish with separate MP4s.
 9. After you select **Yes** to accept merging, the toolkit creates and opens a temporary `SOURCE_PREVIEWS.jpg`. Inspect the rows to identify the camera and computer screen. These are **input source previews**, not a preview of the final merged layout. The image is removed after a successful merge.
 10. At **Source ID for the LARGE video on the LEFT (1, 2)**, enter the ID you want large. The prompt lists the actual available IDs. With two streams, the other becomes small on the right automatically. With more than two, choose the small source from a second prompt.
 11. At **Encoder**, press Enter for **Auto**, or use the arrow keys to choose **CPU** or **NVIDIA (NVENC)** and press Enter.
@@ -107,7 +107,7 @@ Yes/No and encoder selectors use arrow keys and Enter, with the current choice h
 
 A failure after encoding starts is reported rather than automatically restarted with another encoder.
 
-## Option 2: Combine two local videos
+## Option 2: Merge two local videos
 
 Use this after a course batch download, or whenever you already have both source files.
 
@@ -134,7 +134,7 @@ If the console cannot support keyboard navigation, option 2 asks you to paste bo
 5. Press **Enter** when your selection is ready. The selected lessons are listed in the console.
 6. At **Course folder name [Echo360]**, enter a name such as `Course`, or press Enter for `Echo360`.
 7. At **Download root folder**, press Enter for `downloads`, or enter an absolute path. Each selected lesson gets its own automatic date/ID subfolder inside the course folder; there is no individual subfolder-name prompt in this workflow.
-8. At **Combine the downloaded streams into one video?**, press Enter to accept the default **Yes**, or use the arrow keys to select **No** and press Enter to download only.
+8. At **Merge the downloaded streams into one video?**, press Enter to accept the default **Yes**, or use the arrow keys to select **No** and press Enter to download only.
 9. If merging, the toolkit reads the available source IDs from the first selected lesson. **No previews are created or opened.** At **Source ID for the LARGE video on the LEFT for all lessons (1, 2)**, choose the source you want large throughout the batch. With two streams, the other automatically becomes small; with more than two, choose the small source once too.
 10. Use the arrow keys to choose **Auto**, **CPU**, or **NVIDIA (NVENC)**, then press Enter. **Auto** is selected by default. This encoder and the selected source layout apply to every lesson. Download-only batches skip the source and encoder questions.
 11. The background batch downloads and, if requested, merges each lesson in sequence. Follow progress in the same window. Each lesson folder contains the source MP4s with audio and, when merged, a file such as `combined_large-2_small-1.mp4`.
@@ -188,7 +188,7 @@ You can also drag the saved batch file onto **`RUN_BATCH.cmd`**. Wait for the pr
 6. Run it with option **4**, or drag it onto `RUN_BATCH.cmd`.
 7. The batch downloads, verifies, merges, and verifies each lesson in sequence. Its merged file is named `combined_large-<ID>_small-<ID>.mp4` inside that lesson's folder.
 
-For an item that should only download, set `"action": "download"` and omit `large_source`, `small_source`, and `encoder`. An omitted `action` means download and combine. The saved selection from option 3 contains either download-only items or merge items with your chosen source IDs and encoder.
+For an item that should only download, set `"action": "download"` and omit `large_source`, `small_source`, and `encoder`. An omitted `action` means download and merge. The saved selection from option 3 contains either download-only items or merge items with your chosen source IDs and encoder.
 
 The report lists download-only results under `downloads`, merged results under `files`, and errors under `failures`. A failed item does not prevent later items from running. Reruns reuse verified completed files. To reverse a completed layout, use option 2 with the input paths swapped. For a custom output filename, use the advanced `combine` command below.
 
@@ -235,7 +235,7 @@ downloads/
 
 Source counts vary. Option 3 uses automatic date/ID subfolders instead of `02`. Option 2 automatically names the output and saves it beside the large input.
 
-1. Open `source_1.mp4` or `source_2.mp4` to watch that stream with the lecture audio, or open the combined MP4 to watch both pictures together. A separate audio file is not needed.
+1. Open `source_1.mp4` or `source_2.mp4` to watch that stream with the lecture audio, or open the merged MP4 to watch both pictures together. A separate audio file is not needed.
 2. Confirm playback and audio, including a point near the end.
 3. If the files are in OneDrive, confirm they are available locally. The toolkit requests **Always keep on this device** for final MP4s.
 4. Before a flight, disconnect from the network and check that the files still play.
@@ -246,7 +246,7 @@ Temporary `.download.lock` and `*.mp4.lock` files protect active tasks from dupl
 
 Successful background jobs also remove their temporary `jobs\<job-id>` folder after the worker exits. One JSON completion record remains in `job-history\<job-id>.json`, containing the inputs, final status, and results. This keeps monitoring and batch reruns available without retaining progress logs and temporary status files. Active, failed, and interrupted jobs are kept in `jobs/`. Cleanup preserves any unexpected files you add to a job folder.
 
-### Combined layout and synchronization
+### Merged layout and synchronization
 
 | Element | Output |
 |---|---|
@@ -257,7 +257,7 @@ Successful background jobs also remove their temporary `jobs\<job-id>` folder af
 
 Both images keep their aspect ratio, with black padding as needed. The smaller picture sits beside the larger one and does not cover it. The original source files remain available for viewing small text at full size.
 
-The combined file uses one input's audio track, so the shared lecture audio is not played twice. For other local files, it uses the large input's audio when available, otherwise the small input's audio.
+The merged file uses one input's audio track, so the shared lecture audio is not played twice. For other local files, it uses the large input's audio when available, otherwise the small input's audio.
 
 The two video timelines start together. Inputs must normally match in duration within two seconds. The toolkit does not detect or repair timing offsets between unrelated recordings. Existing black frames or missing-camera content remain in the output.
 

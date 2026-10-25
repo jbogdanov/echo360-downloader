@@ -45,7 +45,7 @@ class WizardTests(unittest.TestCase):
         prompts, _, background, preview, output = self.run_wizard(
             ['1', self.lesson, 'DevOps', '02', '', '', '2', ''])
         labels = [call.args[0] for call in prompts.call_args_list]
-        self.assertIn('Combine the downloaded streams into one video? [yes] no: ', labels)
+        self.assertIn('Merge the downloaded streams into one video? [yes] no: ', labels)
         self.assertIn('Source ID for the LARGE video on the LEFT (1, 2): ', labels)
         self.assertFalse(any('SMALL video' in label for label in labels))
         options = background.call_args.args[0]['options']
@@ -98,7 +98,7 @@ class WizardTests(unittest.TestCase):
         output = io.StringIO()
 
         def respond(prompt):
-            if prompt.startswith('Combine the downloaded'):
+            if prompt.startswith('Merge the downloaded'):
                 self.assertNotIn('SOURCE_PREVIEWS.jpg', output.getvalue())
             if prompt.startswith('Source ID for the LARGE'):
                 self.assertIn(str(folder / 'SOURCE_PREVIEWS.jpg'), output.getvalue())
