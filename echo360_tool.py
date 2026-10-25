@@ -893,6 +893,13 @@ def confirm_merge():
         status_line('Enter y or n.', 'WARNING')
 
 
+def choose_encoder():
+    encoder = input('Encoder: auto, nvenc, or cpu [auto]: ').strip() or 'auto'
+    if encoder not in ('auto', 'nvenc', 'cpu'):
+        raise ValueError('Encoder must be auto, nvenc, or cpu.')
+    return encoder
+
+
 def wizard_download(lesson, name, output_root):
     try:
         return download(lesson, name=name, output_root=output_root)
@@ -927,13 +934,29 @@ def course_wizard():
     jobs = [dict(action='download', lesson_url=row['lesson_url'], public_course_url=course,
                  title=row['title'], name=default_name(row['lesson_url']), output_root=str(output_root)) for row in selected]
     status_line(f'Each lesson gets its own subfolder in: {output_root}')
-    status_line('Downloading all source streams. Use option 2 afterward to combine a pair of local videos.')
+    if confirm_merge():
+        status_line('Reading source IDs from the first selected lesson; no previews will be created.', 'BATCH')
+        _, video = player(selected[0]['lesson_url'], course)
+        tracks, _ = select_tracks(video)
+        if len(tracks) < 2:
+            raise ValueError('The first selected lesson has fewer than two video streams. Choose download-only or select a two-stream lesson first.')
+        status_line('This source layout applies to every selected lesson. Source IDs do not identify lecturer/screen roles.')
+        big = choose_source('Source ID for the LARGE video on the LEFT for all lessons', tracks)
+        remaining = {key: value for key, value in tracks.items() if key != big}
+        small = next(iter(remaining)) if len(remaining) == 1 else choose_source('Source ID for the SMALL video on the RIGHT for all lessons', remaining)
+        status_line(f'Batch layout: source {big} large / left; source {small} small / right.')
+        encoder = choose_encoder()
+        for job in jobs:
+            job.update(action='combine', large_source=big, small_source=small, encoder=encoder)
+        status_line('Each lesson will download and merge in sequence. Lessons missing a chosen source will report an error; the batch continues.')
+    else:
+        status_line('Downloading all source streams. Use option 2 afterward to combine a pair of local videos.')
     return watch_job(start_background({'type': 'batch', 'jobs': jobs}))
 
 
 def wizard():
     print(colored(BANNER, '36', sys.stdout))
-    print('1. Download a lesson (optional merge)\n2. Combine two existing local video files\n3. Select lessons from a public course and batch download\n4. Run a saved batch JSON file\n')
+    print('1. Download a lesson (optional merge)\n2. Combine two existing local video files\n3. Select lessons from a public course and batch download (optional merge)\n4. Run a saved batch JSON file\n')
     mode = input('Choose 1, 2, 3, or 4 [1]: ').strip() or '1'
     if mode == '3':
         return course_wizard()
@@ -977,9 +1000,7 @@ def wizard():
     else:
         raise ValueError('Choose 1, 2, 3, or 4.')
     status_line(f'Output: {output}')
-    encoder = input('Encoder: auto, nvenc, or cpu [auto]: ').strip() or 'auto'
-    if encoder not in ('auto', 'nvenc', 'cpu'):
-        raise ValueError('Encoder must be auto, nvenc, or cpu.')
+    encoder = choose_encoder()
     directory = start_background({'type': 'combine', 'options': dict(large=large_path, small=small_path, output=output, encoder=encoder)})
     status_line('Leave the computer on while the background job runs.')
     return watch_job(directory)

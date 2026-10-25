@@ -35,7 +35,7 @@ The menu is:
 ```text
 1. Download a lesson (optional merge)
 2. Combine two existing local video files
-3. Select lessons from a public course and batch download
+3. Select lessons from a public course and batch download (optional merge)
 4. Run a saved batch JSON file
 
 Choose 1, 2, 3, or 4 [1]:
@@ -45,7 +45,7 @@ Choose 1, 2, 3, or 4 [1]:
 |---|---|
 | Download one recording and optionally merge its streams | [Option 1](#option-1-download-one-lesson-and-optionally-merge) |
 | Merge two videos already on your computer | [Option 2](#option-2-combine-two-local-videos) |
-| Mark several lessons with `[X]` and download them together | [Option 3](#option-3-select-course-lessons-and-batch-download) |
+| Mark several lessons with `[X]`, download them, and optionally merge with one layout for all | [Option 3](#option-3-select-course-lessons-and-batch-download) |
 | Rerun a saved selection or use a prepared download/merge batch | [Option 4](#option-4-run-a-saved-batch) |
 
 Pressing Enter at the menu selects option 1. Open `START.cmd` again whenever you want to begin another workflow.
@@ -130,7 +130,10 @@ Option 2 asks for **file paths**, not source IDs, and does not automatically ope
 5. Press **Enter** when your selection is ready. The selected lessons are listed in the console.
 6. At **Course folder name [Echo360]**, enter a name such as `Course`, or press Enter for `Echo360`.
 7. At **Download root folder**, press Enter for `downloads`, or enter an absolute path. Each selected lesson gets its own automatic date/ID subfolder inside the course folder; there is no individual subfolder-name prompt in this workflow.
-8. The background batch starts automatically. Follow the current lesson and download messages in the same window. When it finishes, open the course folder to find the source MP4s.
+8. At **Combine the downloaded streams into one video? [Enter = yes, n = no]**, press Enter to merge each lesson, or type `n` to download only.
+9. If merging, the toolkit reads the available source IDs from the first selected lesson. **No previews are created or opened.** At **Source ID for the LARGE video on the LEFT for all lessons (1, 2)**, choose the source you want large throughout the batch. With two streams, the other automatically becomes small; with more than two, choose the small source once too.
+10. Choose `auto`, `nvenc`, or `cpu`, or press Enter for `auto`. This encoder and the selected source layout apply to every lesson. Download-only batches skip the source and encoder questions.
+11. The background batch downloads and, if requested, merges each lesson in sequence. Follow progress in the same window. Each lesson folder contains the source MP4s with audio and, when merged, a file such as `combined_large-2_small-1.mp4`.
 
 ```text
   [X]   1. 2026-09-01 14:00 (Europe/Tallinn) | Lecture 1
@@ -153,7 +156,9 @@ Option 2 asks for **file paths**, not source IDs, and does not automatically ope
 
 If the terminal cannot display the Windows keyboard checklist, a numbered version appears instead. Type `1,3,5-7` and press Enter to toggle those rows; use `a` for all available, `n` for none, an empty Enter to continue, or `q` to cancel.
 
-**This workflow downloads all source streams of each selected lesson, with audio in each MP4.** It does not choose a camera/screen stream or merge automatically. Completed download-only jobs leave no `_temporary` folder or source preview image. You can watch any source file directly, use **option 2** afterward to merge a pair, or prepare a merge batch with **option 4** once you have identified the source IDs for each lesson.
+**This workflow downloads all source streams of each selected lesson, with audio in each MP4.** Optional merging uses the same source IDs for every selected lesson. IDs are not camera/screen role labels, so the visible content can differ between lessons even with the same layout. For individual layouts, use **option 2** afterward or prepare a per-lesson batch with **option 4**. Option 3 creates no preview images, and completed downloads remove their `_temporary` folder.
+
+If the first selected lesson has fewer than two streams, merging cannot start; choose download-only or start the selection with a two-stream lesson. If a later lesson lacks a chosen source, its downloaded videos remain available, the error is recorded, and the batch continues with the remaining lessons.
 
 While running, the selection is saved in `jobs\<job-id>\job.json`. After success, the temporary job folder is removed and the selection and results are kept in one file: `job-history\<job-id>.json`. If a lesson fails, the batch records the error and continues with the remaining lessons; failed-job folders are retained. Use option 4 with either saved batch file to rerun the selection. Completed downloads whose checksums still match are reused.
 
@@ -179,7 +184,7 @@ You can also drag the saved batch file onto **`RUN_BATCH.cmd`**. Wait for the pr
 6. Run it with option **4**, or drag it onto `RUN_BATCH.cmd`.
 7. The batch downloads, verifies, merges, and verifies each lesson in sequence. Its merged file is named `combined_large-<ID>_small-<ID>.mp4` inside that lesson's folder.
 
-For an item that should only download, set `"action": "download"` and omit `large_source`, `small_source`, and `encoder`. An omitted `action` means download and combine. The saved selection from option 3 already contains download-only items.
+For an item that should only download, set `"action": "download"` and omit `large_source`, `small_source`, and `encoder`. An omitted `action` means download and combine. The saved selection from option 3 contains either download-only items or merge items with your chosen source IDs and encoder.
 
 The report lists download-only results under `downloads`, merged results under `files`, and errors under `failures`. A failed item does not prevent later items from running. Reruns reuse verified completed files. To reverse a completed layout, use option 2 with the input paths swapped. For a custom output filename, use the advanced `combine` command below.
 
@@ -231,7 +236,7 @@ Source counts vary. Option 3 uses automatic date/ID subfolders instead of `02`. 
 3. If the files are in OneDrive, confirm they are available locally. The toolkit requests **Always keep on this device** for final MP4s.
 4. Before a flight, disconnect from the network and check that the files still play.
 
-`SOURCE_PREVIEWS.jpg` is a temporary comparison of separate inputs, created when you accept merging and removed after success. The downloader also removes its `_temporary` folder after all source files are ready. Files from interrupted downloads are retained for retrying; unexpected files you place in `_temporary` are preserved. A `.partial.mp4` is unfinished; use the final MP4 after successful verification. Keep `manifest.json` and verification reports with their videos so later runs can recognize completed downloads and merges.
+`SOURCE_PREVIEWS.jpg` is a temporary comparison of separate inputs, created when you accept merging in option 1 and removed after success. Option 3 does not create previews. The downloader also removes its `_temporary` folder after all source files are ready. Files from interrupted downloads are retained for retrying; unexpected files you place in `_temporary` are preserved. A `.partial.mp4` is unfinished; use the final MP4 after successful verification. Keep `manifest.json` and verification reports with their videos so later runs can recognize completed downloads and merges.
 
 Temporary `.download.lock` and `*.mp4.lock` files protect active tasks from duplicate writers and are removed when the task releases them. After a merge and its verification succeed, an empty `*.ffmpeg.log` is deleted automatically. Logs containing errors, and logs from failed jobs, are retained for troubleshooting.
 
@@ -392,7 +397,7 @@ Login-only institutional pages, DRM/encrypted streams, and HLS with separate med
 
 Validation recorded on **25 October 2026**, on Windows with Python 3.13, imageio-ffmpeg 0.6.0, Pillow 12.2.0, and bundled FFmpeg 7.1:
 
-- **50 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, wizard prompts and automatic output naming, course discovery/selection, batch failure handling, live monitoring, lock cleanup with concurrent processes, and completed-job cleanup.
+- **53 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, wizard prompts and automatic output naming, course discovery/selection and shared batch layouts without previews, batch failure handling, live monitoring, lock cleanup with concurrent processes, and completed-job cleanup.
 - Local HTTP integration downloaded two streams plus shared audio, muxed and verified the outputs, created source previews, and checked checksum-based reuse. A two-lesson download batch also completed successfully.
 - All eight source MP4s checked across four downloaded lessons contained AAC audio. Ten-second samples starting one minute into each file decoded with non-silent audio; this was a sample check, not a full listening review.
 - Metadata discovery succeeded for all four supplied public courses. The Windows checklist was exercised in a real console using Space/X, arrows, Page Down, and Enter.

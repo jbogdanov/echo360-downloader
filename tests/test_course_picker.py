@@ -110,7 +110,7 @@ class CourseTests(unittest.TestCase):
 
     def test_course_wizard_builds_only_selected_download_jobs(self):
         rows = parse([entry('a'), entry('b'), entry('c')])
-        with patch('builtins.input', side_effect=['3', 'https://example.org/section/abc/public', 'DevOps', '']), \
+        with patch('builtins.input', side_effect=['3', 'https://example.org/section/abc/public', 'DevOps', '', 'n']), \
                 patch.object(tool, 'load_course', return_value=rows), \
                 patch.object(tool, 'choose_lessons', return_value=[rows[0], rows[2]]), \
                 patch.object(tool, 'start_background', return_value=Path('job')) as start, \
@@ -130,6 +130,69 @@ class CourseTests(unittest.TestCase):
                 patch.object(tool, 'start_background') as start, patch('sys.stdout', io.StringIO()):
             tool.course_wizard()
         start.assert_not_called()
+
+    def test_course_merge_uses_one_layout_for_every_selected_lesson_without_previews(self):
+        rows = parse([entry('a'), entry('b'), entry('c')])
+        course = 'https://example.org/section/abc/public'
+        for ids, choices, expected in [((1, 2), ['2'], (2, 1)),
+                                       ((3, 7, 9), ['7', '9'], (7, 9))]:
+            video = {'playableMedias': [{'trackType': ['Video'], 'sourceIndex': i} for i in ids]}
+            with self.subTest(ids=ids), \
+                    patch('builtins.input', side_effect=[course, 'Course', '', '', *choices, '']) as prompts, \
+                    patch.object(tool, 'load_course', return_value=rows), \
+                    patch.object(tool, 'choose_lessons', return_value=[rows[0], rows[2]]), \
+                    patch.object(tool, 'player', return_value=(None, video)) as player, \
+                    patch.object(tool, 'preview_files') as preview, \
+                    patch.object(tool, 'start_background', return_value=Path('job')) as start, \
+                    patch.object(tool, 'watch_job', return_value=0), patch('sys.stdout', io.StringIO()):
+                tool.course_wizard()
+            jobs = start.call_args.args[0]['jobs']
+            self.assertEqual([j['lesson_url'] for j in jobs], [rows[0]['lesson_url'], rows[2]['lesson_url']])
+            self.assertTrue(all((j['action'], j['large_source'], j['small_source'], j['encoder']) ==
+                                ('combine', *expected, 'auto') for j in jobs))
+            player.assert_called_once_with(rows[0]['lesson_url'], course)
+            preview.assert_not_called()
+            labels = [call.args[0] for call in prompts.call_args_list]
+            self.assertEqual(sum('LARGE' in label for label in labels), 1)
+            self.assertEqual(sum('SMALL' in label for label in labels), int(len(ids) > 2))
+            self.assertIn(f'Source ID for the LARGE video on the LEFT for all lessons ({", ".join(map(str, ids))}): ', labels)
+
+    def test_course_merge_with_one_source_does_not_start_worker(self):
+        rows = parse([entry('a')])
+        video = {'playableMedias': [{'trackType': ['Video'], 'sourceIndex': 1}]}
+        with patch('builtins.input', side_effect=['https://example.org/section/abc/public', '', '', '']), \
+                patch.object(tool, 'load_course', return_value=rows), \
+                patch.object(tool, 'choose_lessons', return_value=rows), \
+                patch.object(tool, 'player', return_value=(None, video)), \
+                patch.object(tool, 'start_background') as start, patch('sys.stdout', io.StringIO()):
+            with self.assertRaisesRegex(ValueError, 'fewer than two'):
+                tool.course_wizard()
+        start.assert_not_called()
+
+    def test_merge_batch_keeps_layout_and_continues_after_missing_source(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            full = {'streams': [{'source_id': i, 'file': f'source_{i}.mp4'} for i in (1, 2)]}
+            single = {'streams': full['streams'][:1]}
+            jobs = [dict(action='combine', lesson_url=name, large_source=2, small_source=1, encoder='cpu')
+                    for name in ('first', 'missing', 'last')]
+            with patch.object(tool, 'download', side_effect=[(directory / 'first', full),
+                                                           (directory / 'missing', single),
+                                                           (directory / 'last', full)]), \
+                    patch.object(tool, 'combine', return_value={'ok': True}) as combine, \
+                    patch.object(tool, 'preview_files') as preview, patch('sys.stdout', io.StringIO()):
+                with self.assertRaisesRegex(RuntimeError, '1 batch item'):
+                    tool.run_batch(jobs, directory)
+            self.assertEqual(combine.call_count, 2)
+            for call, name in zip(combine.call_args_list, ('first', 'last')):
+                folder = directory / name
+                self.assertEqual(call.args, (folder / 'source_2.mp4', folder / 'source_1.mp4',
+                                             folder / 'combined_large-2_small-1.mp4'))
+                self.assertEqual(call.kwargs['encoder'], 'cpu')
+            report = tool.read_json(directory / 'batch-report.json')
+            self.assertEqual(report['failures'][0]['item'], 2)
+            self.assertEqual(len(report['files']), 2)
+            preview.assert_not_called()
 
     def test_download_batch_never_encodes_and_continues_after_failure(self):
         with tempfile.TemporaryDirectory() as temporary:
