@@ -31,10 +31,11 @@ class WizardTests(unittest.TestCase):
         labels = [call.args[0] for call in prompts.call_args_list]
         self.assertIn('Course folder name', labels[2])
         self.assertIn('Video subfolder name', labels[3])
-        download.assert_called_once_with(self.lesson, name='02', output_root=tool.HOME/'downloads'/'DevOps')
+        download.assert_called_once_with(self.lesson, name='02', output_root=tool.HOME/'downloads'/'DevOps', announce_preview=False)
         background.assert_not_called()
         preview.assert_not_called()
         self.assertIn('Download complete', output)
+        self.assertNotIn('SOURCE_PREVIEWS.jpg', output)
         self.assertFalse(any('Public course' in label for label in labels))
 
     def test_two_streams_only_asks_for_large_source(self):
@@ -60,7 +61,7 @@ class WizardTests(unittest.TestCase):
                 patch('sys.stdout', new_callable=io.StringIO):
             self.assertEqual(tool.wizard_download(self.lesson, '02', Path('DevOps')), expected)
         prompts.assert_called_once_with('Public course/section URL: ')
-        download.assert_called_with(self.lesson, course_url=self.course, name='02', output_root=Path('DevOps'))
+        download.assert_called_with(self.lesson, course_url=self.course, name='02', output_root=Path('DevOps'), announce_preview=False)
 
     def test_server_error_does_not_prompt_for_course(self):
         failure = HTTPError(self.lesson, 503, 'Unavailable', {}, None)
@@ -85,6 +86,35 @@ class WizardTests(unittest.TestCase):
             ['1', self.lesson, 'DevOps', '02', '', 'y', '3', '2', 'cpu'], ids=(1, 2, 3))
         self.assertIn('Source ID for the SMALL video on the RIGHT (1, 2): ', [call.args[0] for call in prompts.call_args_list])
         self.assertTrue(background.call_args.args[0]['options']['small'].endswith('source_2.mp4'))
+
+    def test_preview_is_announced_only_after_merge_acceptance(self):
+        folder = tool.HOME / 'downloads' / 'DevOps' / '02'
+        manifest = {'streams': [{'source_id': i, 'file': f'source_{i}.mp4'} for i in (1, 2)]}
+        answers = iter(['1', self.lesson, 'DevOps', '02', '', 'y', '2', 'cpu'])
+        output = io.StringIO()
+
+        def respond(prompt):
+            if prompt.startswith('Combine the downloaded'):
+                self.assertNotIn('SOURCE_PREVIEWS.jpg', output.getvalue())
+            if prompt.startswith('Source ID for the LARGE'):
+                self.assertIn(str(folder / 'SOURCE_PREVIEWS.jpg'), output.getvalue())
+                self.assertIn('> [PREVIEW]', output.getvalue())
+            return next(answers)
+
+        with patch('builtins.input', side_effect=respond), \
+                patch.object(tool, 'download', return_value=(folder, manifest)), \
+                patch.object(tool, 'start_background'), \
+                patch.object(tool.os, 'startfile', create=True), \
+                patch('sys.stdout', output):
+            tool.wizard()
+
+    def test_redirected_status_has_labels_but_no_ansi_codes(self):
+        output = io.StringIO()
+        tool.status_line('Source 1 is ready', 'READY', stream=output)
+        tool.status_line('Something failed', 'ERROR', stream=output)
+        self.assertIn('> [READY] Source 1 is ready', output.getvalue())
+        self.assertIn('> [ERROR] Something failed', output.getvalue())
+        self.assertNotIn('\033[', output.getvalue())
 
 
 if __name__ == '__main__':

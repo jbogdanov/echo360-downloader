@@ -1,5 +1,6 @@
 """Exercise real HTTP downloads, muxing, verification and cache reuse without Echo360."""
 import functools
+import io
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import sys
@@ -38,7 +39,9 @@ class DownloadIntegration(unittest.TestCase):
                 {'sourceIndex': 0, 'trackType': ['Audio'], 'isHls': False, 'uri': base+'/audio.mp4'}]}
             try:
                 with patch.object(tool, 'player', return_value=(urllib.request.build_opener(), video)):
-                    folder, manifest = tool.download('https://example.org/lesson/test/classroom', name='HTTP test', output_root=root/'outputs')
+                    with patch('sys.stdout', new_callable=io.StringIO) as console:
+                        folder, manifest = tool.download('https://example.org/lesson/test/classroom', name='HTTP test', output_root=root/'outputs', announce_preview=False)
+                    self.assertNotIn('SOURCE_PREVIEWS.jpg', console.getvalue())
                     self.assertEqual(len(manifest['streams']), 2)
                     self.assertTrue((folder/'SOURCE_PREVIEWS.jpg').exists())
                     for row in manifest['streams']:

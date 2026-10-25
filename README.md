@@ -13,7 +13,7 @@ This project was fully created with Codex GPT-6 Astra.
 5. Choose the download root folder or press Enter for this toolkit's `downloads` directory. For the example above, files go to `downloads/DevOps/02`.
 6. The script tries the lesson link directly. **Only if access fails**, it asks for the course's public section URL to establish a viewing session. It then downloads every available video stream at its highest listed resolution and adds the shared audio to each MP4. Leave this console open during downloading.
 7. After downloading, answer **y** to combine the streams, or **n / Enter** to keep the separate videos without encoding.
-8. If you choose to combine, `SOURCE_PREVIEWS.jpg` opens on Windows. **This shows the separate input streams, not the merged output or its layout.** Each row is one source, with frames near the beginning, middle, and end. Enter the source ID that should be **large on the left**; available IDs appear in the prompt, for example `(1, 2)`. With two streams, the other ID is automatically used **small on the right**. If more than two streams exist, a second choice identifies which remaining stream to use.
+8. Only after you accept merging, the console displays the path to `SOURCE_PREVIEWS.jpg` and opens it on Windows. **This shows the separate input streams, not the merged output or its layout.** Each row is one source, with frames near the beginning, middle, and end. Enter the source ID that should be **large on the left**; available IDs appear in the prompt, for example `(1, 2)`. With two streams, the other ID is automatically used **small on the right**. If more than two streams exist, a second choice identifies which remaining stream to use.
 9. Press Enter for the `auto` encoder. The script starts a detached background process and prints its status/log paths. You can now close the console.
 
 The result is named, for example, `combined_large-2_small-1.mp4` and is saved beside the downloaded source files. The originals remain available.
@@ -173,6 +173,8 @@ A batch needs an explicit list of lesson URLs. It does not enumerate course page
 
 ## Background status, stopping, and recovery
 
+Console messages use `>` markers and labels such as `[DOWNLOAD]`, `[READY]`, `[PREVIEW]`, and `[BACKGROUND]`. Interactive terminals show information in cyan, completed steps in green, warnings in yellow, errors in red, and progress in blue. Background logs and redirected output remain plain text, without color escape codes. Set the `NO_COLOR` environment variable to disable colors; terminals without color support also use plain text.
+
 Each detached job gets a folder under `jobs`, such as `jobs/20261025-120000-a1b2c3/`:
 
 | File | Meaning |
@@ -239,7 +241,7 @@ For help on any command, append `--help`, for example `echo360_tool.py combine -
 Validated on 25 October 2026, Windows, Python 3.13, with the private environment created by `setup.ps1`.
 
 - Setup succeeded from a folder whose path includes spaces and Estonian characters. Dependencies: imageio-ffmpeg 0.6.0 and Pillow 12.2.0; bundled FFmpeg 7.1.
-- Fourteen automated tests passed. They cover duration parsing, highest-resolution playlist selection, relative URLs, rejecting encrypted/unsupported layouts, source IDs independent of array order, protecting input files, the HTTP download integration, and the interactive folder/merge/source-selection flow, including public-session fallback and source-preview naming.
+- Sixteen automated tests passed. They cover duration parsing, highest-resolution playlist selection, relative URLs, rejecting encrypted/unsupported layouts, source IDs independent of array order, protecting input files, the HTTP download integration, and the interactive folder/merge/source-selection flow, including public-session fallback, preview announcements after acceptance, and plain-text redirected logs.
 - The integration test generated two short video-only files and separate AAC audio, served them over local HTTP, downloaded and muxed both streams, verified playback, generated a contact sheet, and confirmed checksum-based reuse without another full transfer. Test media was temporary.
 - A real public Echo360 lesson was inspected using a fresh public course session. Both video playlists and the audio playlist resolved successfully. Small HTTP range requests returned valid MP4 headers for all three tracks. Evidence: `validation/public-session-check.json`. This check did not redownload the full lecture.
 - Two detached background jobs successfully combined existing real lecture files into three-second samples, one with the teacher large and one with the computer large. Both jobs reached `complete`, including packet reads and sample decoding. Both outputs contain H.264 video at 1760 × 720 and AAC audio.

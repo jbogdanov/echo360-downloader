@@ -37,6 +37,36 @@ for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(encoding='utf-8', errors='replace')
 
 
+def supports_color(stream):
+    if 'NO_COLOR' in os.environ or not getattr(stream, 'isatty', lambda: False)():
+        return False
+    if os.name != 'nt':
+        return True
+    from ctypes import wintypes
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.GetStdHandle.argtypes = [wintypes.DWORD]
+    kernel.GetStdHandle.restype = wintypes.HANDLE
+    kernel.GetConsoleMode.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    kernel.SetConsoleMode.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    handle = kernel.GetStdHandle(-12 if stream is sys.stderr else -11)
+    mode = wintypes.DWORD()
+    return bool(kernel.GetConsoleMode(handle, ctypes.byref(mode)) and
+                kernel.SetConsoleMode(handle, mode.value | 0x0004))
+
+
+def colored(text, color, stream):
+    return f'\033[{color}m{text}\033[0m' if supports_color(stream) else text
+
+
+def status_line(message, tag=None, stream=None):
+    stream = stream or sys.stdout
+    color = {'READY': '32', 'COMPLETE': '32', 'WARNING': '33', 'ERROR': '31',
+             'PROGRESS': '94'}.get(tag, '36')
+    marker = colored(f'> [{tag}]' if tag else '>', color, stream)
+    for line in str(message).splitlines():
+        print(f'{marker} {line}', file=stream, flush=True)
+
+
 def write_json(path, data):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -198,7 +228,7 @@ def fetch_file(opener, url, path):
                     output.write(block)
                     received += len(block)
                     if time.monotonic() - last > 10:
-                        print(f'  Downloaded {received/1024**2:.1f} MiB' + (f' / {total/1024**2:.1f} MiB' if total else ''), flush=True)
+                        status_line(f'Downloaded {received/1024**2:.1f} MiB' + (f' / {total/1024**2:.1f} MiB' if total else ''), 'PROGRESS')
                         last = time.monotonic()
             if not received or (total and received != total):
                 raise OSError('Incomplete HTTP download')
@@ -206,7 +236,7 @@ def fetch_file(opener, url, path):
         except (OSError, TimeoutError):
             if attempt == 2:
                 raise
-            print('  Download interrupted; retrying from the beginning.', flush=True)
+            status_line('Download interrupted; retrying from the beginning.', 'WARNING')
             time.sleep(2)
 
 
@@ -251,7 +281,7 @@ def pin(path):
     if os.name == 'nt':
         result = subprocess.run(['attrib', '+P', '-U', str(path)], capture_output=True, creationflags=NO_WINDOW)
         if result.returncode:
-            print(f'Note: could not set Always keep on this device for {path}', flush=True)
+            status_line(f'Could not set Always keep on this device for {path}', 'WARNING')
 
 
 def default_name(url):
@@ -260,13 +290,13 @@ def default_name(url):
     return prefix + '_' + hashlib.sha256(url.encode()).hexdigest()[:8]
 
 
-def download(lesson_url, course_url=None, name=None, output_root=None):
+def download(lesson_url, course_url=None, name=None, output_root=None, announce_preview=True):
     folder = Path(output_root or HOME / 'downloads').expanduser().resolve() / slug(name or default_name(lesson_url))
     with exclusive(folder / '.download.lock'):
-        return _download(lesson_url, course_url, name, output_root)
+        return _download(lesson_url, course_url, name, output_root, announce_preview)
 
 
-def _download(lesson_url, course_url=None, name=None, output_root=None):
+def _download(lesson_url, course_url=None, name=None, output_root=None, announce_preview=True):
     opener, video = player(lesson_url, course_url)
     tracks, audio = select_tracks(video)
     expected = duration_seconds(video['duration'])
@@ -276,7 +306,7 @@ def _download(lesson_url, course_url=None, name=None, output_root=None):
     manifest = read_json(manifest_path) if manifest_path.exists() else {'lesson_url': lesson_url, 'public_course_url': course_url, 'streams': []}
     if manifest['lesson_url'] != lesson_url:
         raise RuntimeError('This output name belongs to another lesson. Choose a different name.')
-    print(f'Lesson: {expected/60:.1f} minutes; source IDs: {list(tracks)}\nFolder: {folder}', flush=True)
+    status_line(f'Lesson: {expected/60:.1f} minutes; source IDs: {list(tracks)}\nFolder: {folder}')
     cache = folder / '_temporary'
     cache.mkdir(exist_ok=True)
     audio_path = cache / 'audio.mp4'
@@ -285,18 +315,18 @@ def _download(lesson_url, course_url=None, name=None, output_root=None):
         target = folder / f'source_{index}.mp4'
         old = known.get(index)
         if old and target.is_file() and target.stat().st_size == old['bytes'] and digest(target) == old['sha256']:
-            print(f'Source {index}: already downloaded and checksum matches.', flush=True)
+            status_line(f'Source {index}: already downloaded and checksum matches.', 'READY')
             continue
         if target.exists():
             raise RuntimeError(f'Existing file is unverified or changed: {target}. Move it aside before retrying.')
         if audio and not audio_path.exists():
-            print('Downloading shared audio...', flush=True)
+            status_line('Shared audio...', 'DOWNLOAD')
             audio_partial = cache / 'audio.download'
             fetch_file(opener, media_url(opener, audio), audio_partial)
             audio_partial.replace(audio_path)
         raw = cache / f'source_{index}.raw.mp4'
         partial = cache / f'source_{index}.partial.mp4'
-        print(f'Downloading source {index} at its highest available resolution...', flush=True)
+        status_line(f'Source {index} at its highest available resolution...', 'DOWNLOAD')
         fetch_file(opener, media_url(opener, media), raw)
         args = ['-v', 'error', '-i', str(raw)]
         if audio:
@@ -314,14 +344,14 @@ def _download(lesson_url, course_url=None, name=None, output_root=None):
         write_json(manifest_path, manifest)
         pin(target)
         raw.unlink(missing_ok=True)
-        print(f'READY source {index}: {info["resolution"]}', flush=True)
+        status_line(f'Source {index}: {info["resolution"]}', 'READY')
     audio_path.unlink(missing_ok=True)
     preview_files([(f'Source {r["source_id"]}', folder / r['file']) for r in manifest['streams']],
-                  folder / 'SOURCE_PREVIEWS.jpg', title='SOURCE STREAM PREVIEWS - separate inputs, not the merged output')
+                  folder / 'SOURCE_PREVIEWS.jpg', title='SOURCE STREAM PREVIEWS - separate inputs, not the merged output', announce=announce_preview)
     return folder, manifest
 
 
-def preview_files(items, output, title='INPUT VIDEO PREVIEWS - separate inputs, not the merged output'):
+def preview_files(items, output, title='INPUT VIDEO PREVIEWS - separate inputs, not the merged output', announce=True):
     from PIL import Image, ImageDraw, ImageFont
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -341,7 +371,8 @@ def preview_files(items, output, title='INPUT VIDEO PREVIEWS - separate inputs, 
             frame.unlink()
             draw.text((col*480+8, header+row*300+8), f'{label} | {position:.0f} seconds', fill='white')
     sheet.save(output, quality=90)
-    print(f'Input source previews (not the merged output): {output}', flush=True)
+    if announce:
+        status_line(f'Input source previews (not the merged output): {output}', 'PREVIEW')
     return output
 
 
@@ -414,7 +445,7 @@ def _combine(large, small, output, encoder='auto', seconds=None, allow_different
     args += ['-c:a', 'copy'] if (a, b)[audio_input]['aac'] else ['-c:a', 'aac', '-b:a', '128k']
     args += ['-t', str(expected), '-shortest', '-movflags', '+faststart', '-progress', 'pipe:1', '-y', str(partial)]
     log_path = output.with_suffix('.ffmpeg.log')
-    print(f'Encoding with {chosen}: {output}', flush=True)
+    status_line(f'Encoding with {chosen}: {output}', 'ENCODE')
     update_status(job_dir, phase='encoding', output=str(output), encoder=chosen, percent=0)
     with log_path.open('w', encoding='utf-8') as log:
         proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=log, text=True, creationflags=NO_WINDOW)
@@ -427,7 +458,7 @@ def _combine(large, small, output, encoder='auto', seconds=None, allow_different
                 except ValueError:
                     continue
                 update_status(job_dir, percent=round(percent, 1), ffmpeg_pid=proc.pid)
-                print(f'  {percent:.1f}%', flush=True)
+                status_line(f'{percent:.1f}%', 'PROGRESS')
                 last = time.monotonic()
         if proc.wait():
             raise RuntimeError(f'Encoding failed. See {log_path}')
@@ -438,7 +469,7 @@ def _combine(large, small, output, encoder='auto', seconds=None, allow_different
     report = dict(file=str(output), large=str(large), small=str(small), encoder=chosen,
                   bytes=output.stat().st_size, sha256=digest(output), checks=['duration', 'video_and_audio', 'all_packets', 'start_middle_end_decode'], **info)
     write_json(output.with_suffix('.verification.json'), report)
-    print(f'COMPLETE: {output}', flush=True)
+    status_line(str(output), 'COMPLETE')
     return report
 
 
@@ -454,7 +485,9 @@ def start_background(job):
         else:
             kwargs['start_new_session'] = True
         proc = subprocess.Popen([sys.executable, '-u', str(Path(__file__).resolve()), '_worker', str(directory)], **kwargs)
-    print(f'Background job started. PID: {proc.pid}\nStatus: {directory / "STATUS.txt"}\nLog: {directory / "run.log"}', flush=True)
+    print()
+    status_line(f'Job started. PID: {proc.pid}', 'BACKGROUND')
+    status_line(f'Status: {directory / "STATUS.txt"}\nLog: {directory / "run.log"}')
     return directory
 
 
@@ -473,12 +506,12 @@ def run_batch(jobs, job_dir=None):
             verification = output.with_suffix('.verification.json')
             if output.exists() and verification.exists() and digest(output) == read_json(verification)['sha256']:
                 results.append(read_json(verification))
-                print(f'Already complete: {output}', flush=True)
+                status_line(f'Already complete: {output}', 'COMPLETE')
                 continue
             results.append(combine(mapping[big], mapping[small], output, encoder=job.get('encoder', 'auto'), job_dir=job_dir))
         except Exception as exc:
             failures.append(dict(item=number, lesson=job.get('lesson_url'), error=str(exc)))
-            print(f'FAILED item {number}: {exc}', flush=True)
+            status_line(f'Item {number} failed: {exc}', 'ERROR')
     report = dict(files=results, failures=failures)
     if job_dir:
         write_json(Path(job_dir) / 'batch-report.json', report)
@@ -521,7 +554,7 @@ def choose_source(label, mapping):
         answer = input(f'{label} ({choices}): ').strip()
         if answer.isdigit() and int(answer) in mapping:
             return int(answer)
-        print(f'Enter one of: {list(mapping)}')
+        status_line(f'Enter one of: {list(mapping)}', 'WARNING')
 
 
 def confirm_merge():
@@ -531,24 +564,24 @@ def confirm_merge():
             return True
         if answer in ('', 'n', 'no'):
             return False
-        print('Enter y or n.')
+        status_line('Enter y or n.', 'WARNING')
 
 
 def wizard_download(lesson, name, output_root):
     try:
-        return download(lesson, name=name, output_root=output_root)
+        return download(lesson, name=name, output_root=output_root, announce_preview=False)
     except (PublicAccessRequired, urllib.error.HTTPError) as exc:
         if isinstance(exc, urllib.error.HTTPError) and exc.code not in (401, 403):
             raise
-        print('The lesson could not be accessed directly. Its public course link may establish the required viewing session.')
+        status_line('The lesson could not be accessed directly. Its public course link may establish the required viewing session.', 'WARNING')
         course = input('Public course/section URL: ').strip()
         if not course:
             raise PublicAccessRequired('No course URL supplied. Open the public course in your browser and copy its URL.') from exc
-        return download(lesson, course_url=course, name=name, output_root=output_root)
+        return download(lesson, course_url=course, name=name, output_root=output_root, announce_preview=False)
 
 
 def wizard():
-    print(BANNER)
+    print(colored(BANNER, '36', sys.stdout))
     print('1. Download a lesson (optional merge)\n2. Combine two existing local video files\n3. Run a batch JSON file in the background\n')
     mode = input('Choose 1, 2, or 3 [1]: ').strip() or '1'
     if mode == '3':
@@ -564,21 +597,23 @@ def wizard():
         folder, manifest = wizard_download(lesson, name, output_root)
         mapping = {r['source_id']: str(folder / r['file']) for r in manifest['streams']}
         if len(mapping) < 2:
-            print('Only one stream is available. Download is complete; there is no second stream to combine.')
+            status_line('Only one stream is available. Download is complete; there is no second stream to combine.', 'COMPLETE')
             return
         if not confirm_merge():
-            print(f'Download complete. Source videos and SOURCE_PREVIEWS.jpg are saved in: {folder}')
+            status_line(f'Download complete. Source videos are saved in: {folder}', 'COMPLETE')
             return
         preview = folder / 'SOURCE_PREVIEWS.jpg'
-        print('SOURCE_PREVIEWS.jpg shows the separate source streams, not the final merged layout.')
-        print('Use these input previews or the source MP4s to identify the lecturer and screen. Source IDs are not role labels.')
+        print()
+        status_line('SOURCE_PREVIEWS.jpg shows the separate source streams, not the final merged layout.', 'PREVIEW')
+        status_line(f'File: {preview}')
+        status_line('Use these input previews or the source MP4s to identify the lecturer and screen. Source IDs are not role labels.')
         if os.name == 'nt':
             try: os.startfile(preview)
             except OSError: pass
         big = choose_source('Source ID for the LARGE video on the LEFT', mapping)
         remaining = {k:v for k,v in mapping.items() if k != big}
         small = next(iter(remaining)) if len(remaining) == 1 else choose_source('Source ID for the SMALL video on the RIGHT', remaining)
-        print(f'Layout: source {big} large / left; source {small} small / right.')
+        status_line(f'Layout: source {big} large / left; source {small} small / right.')
         large_path, small_path = mapping[big], mapping[small]
         output = str(folder / f'combined_large-{big}_small-{small}.mp4')
     elif mode == '2':
@@ -591,7 +626,7 @@ def wizard():
     if encoder not in ('auto', 'nvenc', 'cpu'):
         raise ValueError('Encoder must be auto, nvenc, or cpu.')
     start_background({'type': 'combine', 'options': dict(large=large_path, small=small_path, output=output, encoder=encoder)})
-    print('You can close this console. Leave the computer on while the background job runs.')
+    status_line('You can close this console. Leave the computer on while the background job runs.')
 
 
 def main():
@@ -657,8 +692,8 @@ if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
-        print('\nStopped. Completed files were retained.', file=sys.stderr)
+        status_line('Stopped. Completed files were retained.', 'WARNING', stream=sys.stderr)
         sys.exit(130)
     except Exception as error:
-        print(f'ERROR: {error}', file=sys.stderr)
+        status_line(str(error), 'ERROR', stream=sys.stderr)
         sys.exit(1)
