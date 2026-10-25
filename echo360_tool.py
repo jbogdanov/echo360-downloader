@@ -574,6 +574,8 @@ def wizard_download(lesson, name, output_root):
         if isinstance(exc, urllib.error.HTTPError) and exc.code not in (401, 403):
             raise
         status_line('The lesson could not be accessed directly. Its public course link may establish the required viewing session.', 'WARNING')
+        status_line('URL format: https://echo360.org.uk/section/<course-id>/public')
+        status_line('Copy your course page link; replace <course-id> with its actual ID.')
         course = input('Public course/section URL: ').strip()
         if not course:
             raise PublicAccessRequired('No course URL supplied. Open the public course in your browser and copy its URL.') from exc

@@ -46,6 +46,20 @@ Two links may be needed:
 | Specific lesson | Selects one recording | `https://echo360.org.uk/lesson/…/classroom` |
 | Public course/section | Establishes public viewing access | `https://echo360.org.uk/section/…/public` |
 
+A public course/section URL has this format:
+
+```text
+https://echo360.org.uk/section/<course-id>/public
+```
+
+For example, using a placeholder course ID:
+
+```text
+https://echo360.org.uk/section/12345678-1234-1234-1234-123456789abc/public
+```
+
+Copy the actual link from your public course page. The course ID is different from the lesson ID; do not paste the placeholder example unchanged. The wizard displays the URL format before asking for this link.
+
 Copy the complete lesson URL from the browser. Some lesson IDs contain long date/time strings; keep the entire URL, including any query string. Do not invent a lesson ID from a date.
 
 The wizard first tries the lesson URL alone. Some recordings require a public viewing session established by visiting their course page, so the wizard asks for that link only when direct access fails. When a course URL is supplied, the downloader opens the course and lesson in the **same HTTP session**, then reads the player metadata and resolves the highest-resolution playlist. The command-line `--course` option remains available when you already know that link is needed. The downloader supports the unencrypted, single-MP4 byte-range HLS format verified on the supplied Echo360 UK courses, plus directly exposed MP4 tracks. It downloads the referenced MP4 rather than recording your screen.
