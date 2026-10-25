@@ -111,7 +111,7 @@ Use this after a course batch download, or whenever you already have both source
 
 1. Open the lesson folder and play both source MP4s to decide which picture should be large. You can also create a comparison image using the advanced `preview` command below.
 2. Open `START.cmd` and choose **2**.
-3. The **LARGE / LEFT** file browser opens in the project's `downloads` folder. Use **Up / Down** to move the `>` marker and **Enter** to open a folder or select a video, such as `Course\02\source_2.mp4`. If `downloads` does not exist yet, the browser starts in the project folder.
+3. The **LARGE / LEFT** file browser opens in the project's `downloads` folder. A header and divider identify which video you are choosing. Use **Up / Down** to move the green `>` selection and **Enter** to open a folder or select a video, such as `Course\02\source_2.mp4`. If `downloads` does not exist yet, the browser starts in the project folder.
 4. The **SMALL / RIGHT** browser opens in the large video's folder. Choose the other source, such as `source_1.mp4`. The already selected large video is hidden from this list.
 5. The output path is generated automatically and displayed. With these sources, it is `combined_large-2_small-1.mp4` in the same lesson folder, just like option 1.
 6. Choose `auto`, `nvenc`, or `cpu`, or press Enter for `auto`.
