@@ -39,10 +39,11 @@ class WizardTests(unittest.TestCase):
         self.assertNotIn('SOURCE_PREVIEWS.jpg', output)
         self.assertFalse(any('Public course' in label for label in labels))
 
-    def test_two_streams_only_asks_for_large_source(self):
+    def test_enter_accepts_merge_and_two_streams_only_ask_for_large_source(self):
         prompts, _, background, preview, output = self.run_wizard(
-            ['1', self.lesson, 'DevOps', '02', '', 'yes', '2', ''])
+            ['1', self.lesson, 'DevOps', '02', '', '', '2', ''])
         labels = [call.args[0] for call in prompts.call_args_list]
+        self.assertIn('Combine the downloaded streams into one video? [Y/n]: ', labels)
         self.assertIn('Source ID for the LARGE video on the LEFT (1, 2): ', labels)
         self.assertFalse(any('SMALL video' in label for label in labels))
         options = background.call_args.args[0]['options']

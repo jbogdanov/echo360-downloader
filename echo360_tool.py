@@ -726,10 +726,10 @@ def choose_source(label, mapping):
 
 def confirm_merge():
     while True:
-        answer = input('Combine the downloaded streams into one video? [y/N]: ').strip().lower()
-        if answer in ('y', 'yes'):
+        answer = input('Combine the downloaded streams into one video? [Y/n]: ').strip().lower()
+        if answer in ('', 'y', 'yes'):
             return True
-        if answer in ('', 'n', 'no'):
+        if answer in ('n', 'no'):
             return False
         status_line('Enter y or n.', 'WARNING')
 
