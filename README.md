@@ -1,35 +1,123 @@
 # echo360-downloader
 
-Download a specific public Echo360 lecture or select several lessons from a public course using a console checklist. Identify the video streams, choose which one should be large, and combine a pair into one offline MP4. Everything runs on your own computer.
+Download public Echo360 lectures for offline viewing. Choose a single lesson or select several lessons from a course, then optionally combine two video streams into one MP4 with a large video on the left and a smaller video on the right.
 
 This project was fully created with Codex GPT-6 Astra.
 
-## Quick start on this computer
+## 1. Set up the toolkit
 
-1. Open this toolkit folder and double-click **`START.cmd`**.
-2. Choose **1 — Download a lesson (optional merge)** in the Echo360 Ripper menu.
-3. Paste the URL of the **specific lesson**. In Echo360, open the recording and copy the full classroom URL from the address bar.
-4. Enter the **course folder name** first, such as `DevOps`, then the **video subfolder name**, such as `02`. Press Enter at the video prompt for an automatic date/ID name.
-5. Choose the download root folder or press Enter for this toolkit's `downloads` directory. For the example above, files go to `downloads/DevOps/02`.
-6. The script tries the lesson link directly. **Only if access fails**, it asks for the course's public section URL to establish a viewing session. It then downloads every available video stream at its highest listed resolution and adds the shared audio to each MP4. Leave this console open during downloading.
-7. After downloading, answer **y** to combine the streams, or **n / Enter** to keep the separate videos without encoding.
-8. Only after you accept merging, the console displays the path to `SOURCE_PREVIEWS.jpg` and opens it on Windows. **This shows the separate input streams, not the merged output or its layout.** Each row is one source, with frames near the beginning, middle, and end. Enter the source ID that should be **large on the left**; available IDs appear in the prompt, for example `(1, 2)`. With two streams, the other ID is automatically used **small on the right**. If more than two streams exist, a second choice identifies which remaining stream to use.
-9. Press Enter for the `auto` encoder. The script starts a detached background process and shows live progress in the same console: percentage, encoding speed, estimated time remaining, and the final verification stage. You can close the console or press **Ctrl+C** to stop watching; the background job continues.
+You need Windows 10 or 11, Python **3.10 or newer**, an internet connection for setup and downloads, and enough disk space for the source videos and merged output. An NVIDIA GPU is optional; CPU encoding is supported.
 
-The result is named, for example, `combined_large-2_small-1.mp4` and is saved beside the downloaded source files. The originals remain available.
+1. Download or clone this repository into a folder where you want to keep the toolkit.
+2. Keep the repository files together, including `echo360_tool.py`, `course_picker.py`, the `.cmd` launchers, `setup.ps1`, and `requirements.txt`.
+3. Double-click **`SETUP.cmd`** and wait for **Setup complete**. This creates a private `.venv` and installs the dependencies, including FFmpeg. You do not need a separate FFmpeg installation or administrator privileges.
+4. Double-click **`START.cmd`** to open Echo360 Ripper. If setup has already been completed on this computer, start here.
 
-**Choose by looking at the images.** A source ID is not a role: source 1 may be the screen in one lecture and the camera in another. The toolkit uses Echo360's `sourceIndex` IDs, which do not necessarily match a player's visible ordering.
+`START.cmd` also runs setup automatically if the private Python environment is missing. When copying the toolkit to another computer, leave `.venv` behind and run setup again there.
 
-If a recording has only one video stream, it is downloaded normally. The wizard then stops without manufacturing a second stream.
+## 2. Choose your workflow
 
-## Select lessons from a public course (option 3)
+The menu is:
 
-1. Double-click **`START.cmd`** and choose **3 — Select lessons from a public course and batch download**.
-2. Paste the public section URL, such as `https://echo360.org.uk/section/<course-id>/public`, using your actual course ID.
-3. The course's lessons appear in the same console, ordered by date. Dates and times use the course's local timezone.
-4. Use **Up/Down** to move and **Space** or **X** to toggle a lesson's `[X]` mark. **A** selects all available recordings; **N** clears the selection. Use **Page Up/Page Down**, **Home**, or **End** to navigate longer lists. **Q** or **Esc** cancels.
-5. Press **Enter** when your selection is ready, then enter the course folder name and download root.
-6. The selected lessons download sequentially in a background batch, with live status in the same window. Each lesson gets a date/ID subfolder containing all available source MP4s with audio.
+```text
+1. Download a lesson (optional merge)
+2. Combine two existing local video files
+3. Select lessons from a public course and batch download
+4. Run a saved batch JSON file
+
+Choose 1, 2, 3, or 4 [1]:
+```
+
+| You want to… | Choose |
+|---|---|
+| Download one recording and optionally merge its streams | [Option 1](#option-1-download-one-lesson-and-optionally-merge) |
+| Merge two videos already on your computer | [Option 2](#option-2-combine-two-local-videos) |
+| Mark several lessons with `[X]` and download them together | [Option 3](#option-3-select-course-lessons-and-batch-download) |
+| Rerun a saved selection or use a prepared download/merge batch | [Option 4](#option-4-run-a-saved-batch) |
+
+Pressing Enter at the menu selects option 1. Open `START.cmd` again whenever you want to begin another workflow.
+
+### Get the correct Echo360 link
+
+For **one lesson**, open the recording in Echo360 and copy its complete URL from the browser:
+
+```text
+https://echo360.org.uk/lesson/<lesson-id>/classroom
+```
+
+For **a course**, copy the public course page URL:
+
+```text
+https://echo360.org.uk/section/<course-id>/public
+```
+
+Example course URL with a placeholder ID:
+
+```text
+https://echo360.org.uk/section/12345678-1234-1234-1234-123456789abc/public
+```
+
+Use your actual URL, not the placeholder. Lesson and course IDs are different. Some lesson IDs contain long date/time strings; copy the entire link, including any query string.
+
+Option 1 asks for a course link only if it needs one to access the lesson. Option 3 starts with the course link and discovers the lessons for you.
+
+## Option 1: Download one lesson and optionally merge
+
+Follow these prompts in order:
+
+1. Open `START.cmd` and choose **1**.
+2. At **Specific lesson/classroom URL**, paste the recording's full URL.
+3. At **Course folder name [Echo360]**, enter a name such as `DevOps`, or press Enter for `Echo360`.
+4. At **Video subfolder name**, enter a name such as `02`, or press Enter for an automatic date/ID name.
+5. At **Download root folder**, press Enter for the toolkit's `downloads` folder, or enter an absolute path such as `C:\Videos\Echo360`. With the example names and default root, the destination is `downloads\DevOps\02`.
+6. If **Public course/section URL** appears, paste that course's public link. Visiting it establishes the viewing session needed by some lessons.
+7. Wait while every available source stream downloads at its highest listed resolution and receives the shared audio. **Keep this console open during this download stage.**
+8. At **Combine the downloaded streams into one video? [y/N]**, enter **y** to merge, or **n / Enter** to finish with separate MP4s.
+9. If you chose **y**, the toolkit displays and opens `SOURCE_PREVIEWS.jpg`. Inspect the rows to identify the camera and computer screen. These are **input source previews**, not a preview of the final merged layout.
+10. At **Source ID for the LARGE video on the LEFT (1, 2)**, enter the ID you want large. The prompt lists the actual available IDs. With two streams, the other becomes small on the right automatically. With more than two, choose the small source from a second prompt.
+11. At **Encoder: auto, nvenc, or cpu [auto]**, press Enter for `auto`, or choose an encoder from the table below.
+12. The merge starts in the background, and live status appears in the same console. Wait for **Job complete. All output checks passed.** The result is saved beside the source files, for example `combined_large-2_small-1.mp4`.
+
+If the lesson contains only one video stream, downloading completes without a merge question. If you decline merging, the preview filename is not announced or opened; you can inspect the saved image later.
+
+**Source IDs are not role labels.** Source 1 might show slides in one lesson and the lecturer in another. Choose using the previews or play the source MP4s. The previews sample the beginning, middle, and end; inspect more of the recording if the content changes.
+
+### Choose an encoder
+
+| Choice | Behavior |
+|---|---|
+| `auto` — default | Tests NVIDIA NVENC and uses it if available; otherwise uses the CPU. |
+| `nvenc` | Requires a working NVIDIA encoder. Reports an error if unavailable or busy. |
+| `cpu` | Works without an NVIDIA GPU; encoding is usually slower. |
+
+A failure after encoding starts is reported rather than automatically restarted with another encoder.
+
+## Option 2: Combine two local videos
+
+Use this after a course batch download, or whenever you already have both source files.
+
+1. Open the lesson folder. Inspect `SOURCE_PREVIEWS.jpg` if present, or play both source MP4s, and decide which picture should be large.
+2. Open `START.cmd` and choose **2**.
+3. At **LARGE / LEFT video path**, paste the full path to the large source, for example `C:\Videos\Echo360\DevOps\02\source_2.mp4`.
+4. At **SMALL / RIGHT video path**, paste the full path to the other source, such as `C:\Videos\Echo360\DevOps\02\source_1.mp4`.
+5. At **New output MP4 path**, enter a new filename, such as `C:\Videos\Echo360\DevOps\02\teacher-large.mp4`.
+6. Choose `auto`, `nvenc`, or `cpu`, or press Enter for `auto`.
+7. Watch the background merge's progress. When all checks pass, open the output MP4 in your video player.
+
+Paths copied with quotes from File Explorer are accepted. Inputs and output must be different files; an existing final output is not overwritten. To reverse the layout, run option 2 again with the input paths swapped and a new output filename.
+
+Option 2 asks for **file paths**, not source IDs, and does not automatically open a preview. To generate a comparison image for other local files, use the advanced `preview` command below.
+
+## Option 3: Select course lessons and batch download
+
+1. Open `START.cmd` and choose **3**.
+2. At **Public course/section URL**, paste the public course link ending in `/public`.
+3. Wait for the lesson list to load. It shows dates and times in the course's local timezone and indicates which recordings are available.
+4. Move through the list and mark the lessons you want with **Space** or **X**. Selected lessons display `[X]`. Nothing is selected initially.
+5. Press **Enter** when your selection is ready. The selected lessons are listed in the console.
+6. At **Course folder name [Echo360]**, enter a name such as `DevOps`.
+7. At **Download root folder**, press Enter for `downloads`, or enter an absolute path. Each selected lesson gets its own automatic date/ID subfolder inside the course folder; there is no individual subfolder-name prompt in this workflow.
+8. The background batch starts automatically. Follow the current lesson and download messages in the same window. When it finishes, open the course folder to find the source MP4s.
 
 ```text
   [X]   1. 2026-09-01 14:00 (Europe/Tallinn) | Lecture 1
@@ -38,85 +126,129 @@ If a recording has only one video stream, it is downloaded normally. The wizard 
   [-]   4. 2026-12-01 14:00 (Europe/Tallinn) | Lecture 3 -- Not recorded yet
 ```
 
-Rows marked `[-]` cannot be selected: there is no available recording yet, it is processing, or it is currently live. Selecting all skips these rows. No lessons are selected initially. An empty selection does not start a batch.
+| Key | Action |
+|---|---|
+| Up / Down | Move the `>` cursor |
+| Space / X | Select or deselect the current lesson |
+| A / N | Select all available recordings / clear the selection |
+| Page Up / Page Down | Move through a long list |
+| Home / End | Jump to the first / last row |
+| Enter | Continue with the selected lessons |
+| Q / Esc | Cancel without starting a batch |
 
-The arrow-key checklist is supported in Windows consoles. Other terminals fall back to a numbered checklist: type `1,3,5-7` to toggle those rows, `a` for all available, `n` for none, Enter to continue, or `q` to cancel. Both versions display `[X]` beside selected lessons.
+`[ ]` means available, `[X]` means selected, and `[-]` means unavailable. Future, processing, live, and other unavailable recordings cannot be selected. An empty selection does not proceed.
 
-This option **downloads separate source streams**. To merge a downloaded pair, use option **2** and choose which local file should be large. The course picker does not infer lecturer/screen roles or reuse one layout across different lessons. Source previews are saved silently in each lesson folder.
+If the terminal cannot display the Windows keyboard checklist, a numbered version appears instead. Type `1,3,5-7` and press Enter to toggle those rows; use `a` for all available, `n` for none, an empty Enter to continue, or `q` to cancel.
 
-The selected batch is saved as `jobs/<job-id>/job.json`. To retry it, choose option **4** and provide that file, or drag it onto `RUN_BATCH.cmd`. Verified downloads are reused. A failed lesson is recorded in `batch-report.json`; the remaining selected lessons continue.
+**This workflow downloads all source streams of each selected lesson.** It does not choose a camera/screen stream or merge automatically. Source previews are saved silently in each lesson folder. Use **option 2** afterward to merge a pair, or prepare a merge batch with **option 4** once you have identified the source IDs for each lesson.
 
-## Installation on another Windows computer
+The selection is saved in `jobs\<job-id>\job.json`. If a lesson fails, the batch records the error and continues with the remaining lessons. Use option 4 to retry the saved selection; completed downloads whose checksums still match are reused.
 
-Requirements:
+## Option 4: Run a saved batch
 
-- Windows 10 or 11 and Python **3.10 or newer**. A 64-bit Python installation is recommended.
-- Internet for initial setup and downloading recordings.
-- Enough free disk space for both source streams, the combined MP4, and temporary files.
-- An NVIDIA GPU is optional. CPU encoding is supported.
+### Rerun a course selection
 
-Copy the toolkit's scripts (including both `echo360_tool.py` and `course_picker.py`), `examples`, `tests`, and documentation to the new computer. Do not copy the `.venv` folder: Python virtual environments are specific to their installation path. Double-click **`SETUP.cmd`** once, then use **`START.cmd`**.
+1. Find the job folder printed when you started option 3: `jobs\<job-id>`.
+2. Open `START.cmd` and choose **4**.
+3. At **Batch JSON path**, paste the full path to that folder's `job.json`.
+4. Watch the background batch in the same console. It reuses verified source files and retries unfinished downloads.
+5. Review `batch-report.json` in the new job folder if any items fail.
 
-Setup creates a private `.venv` environment and installs the exact package versions in `requirements.txt`. `imageio-ffmpeg` supplies FFmpeg; a separate FFmpeg installation is not required. Pillow creates preview contact sheets. Setup needs no administrator privileges and does not change the system's permanent PowerShell execution policy.
+You can also drag the saved batch file onto **`RUN_BATCH.cmd`**. Wait for the previous batch to finish or stop it before rerunning the same destinations.
 
-The scripts also work from Python's command line. The double-click launchers and OneDrive pinning are Windows-specific.
+### Prepare a download-and-merge batch
 
-## Which Echo360 links and recordings are supported?
+1. Copy [examples/batch.example.json](examples/batch.example.json) to `my-lectures.json`.
+2. Replace each placeholder lesson URL and public course URL with your actual links.
+3. Give each job a distinct `name` and set `output_root` to the desired **course folder**, for example `C:/Videos/Echo360/DevOps`. Unlike the wizard, JSON jobs do not prompt for a course folder.
+4. Inspect each lesson's source previews or MP4s. Set `large_source` and `small_source` to two different IDs for that lesson, and choose an `encoder`. Roles can differ between lessons.
+5. Save the JSON file. Use forward slashes in paths, or escape backslashes as `\\`.
+6. Run it with option **4**, or drag it onto `RUN_BATCH.cmd`.
+7. The batch downloads, verifies, merges, and verifies each lesson in sequence. Its merged file is named `combined_large-<ID>_small-<ID>.mp4` inside that lesson's folder.
 
-Two links may be needed:
+For an item that should only download, set `"action": "download"` and omit `large_source`, `small_source`, and `encoder`. An omitted `action` means download and combine. The saved selection from option 3 already contains download-only items.
 
-| Link | Purpose | Shape |
-|---|---|---|
-| Specific lesson | Selects one recording | `https://echo360.org.uk/lesson/…/classroom` |
-| Public course/section | Establishes public viewing access | `https://echo360.org.uk/section/…/public` |
+The report lists download-only results under `downloads`, merged results under `files`, and errors under `failures`. A failed item does not prevent later items from running. Reruns reuse verified completed files. To change a completed layout, choose a fresh lesson/output destination or use option 2 with a new output filename.
 
-A public course/section URL has this format:
+## 3. Monitor a running job
+
+Once **[BACKGROUND] Job started** appears, the worker runs independently of the console. Options 1 and 2 launch background merging; options 3 and 4 launch the whole batch in the background.
+
+During encoding, progress updates about once per second:
 
 ```text
-https://echo360.org.uk/section/<course-id>/public
+[########------------]  40.0% | 3.2x | ETA 00:17:15 | nvenc
 ```
 
-For example, using a placeholder course ID:
+`3.2x` means about 3.2 seconds of video processed per second. ETA estimates the remaining encoding time; verification follows afterward. Batch status also shows the current item, such as `Job 2/8`, and download messages include transferred MiB when available.
+
+1. Leave the monitor open to follow progress, or close it / press **Ctrl+C** to stop watching. The background worker continues.
+2. To reopen progress in a separate window, double-click **`WATCH.cmd`**. It shows the most recently started job.
+3. To watch a particular job, drag its folder or `STATUS.txt` onto `WATCH.cmd`.
+4. Wait for the completion message before treating the output as ready. If the monitor reports an error, open `run.log` and, for batches, `batch-report.json` in that job's folder.
+
+**Option 1's initial download is still in the foreground:** keep its console open until downloading finishes. Closing it before the background merge starts interrupts that download.
+
+Keep the computer powered on while a job runs. The worker prevents automatic Windows sleep, but shutdown, restart, manual sleep, or a laptop lid action can interrupt it. Internet is needed for downloads, but not for merging local files.
+
+To stop processing itself, use Task Manager's Details view and the worker / active FFmpeg PIDs in `status.json`. Stop the worker and its active FFmpeg process. Closing only the monitor does not stop them. Interrupted transfers and encoding restart from the beginning of the affected file; completed verified files remain. Jobs do not restart automatically after reboot.
+
+Console output uses `>` markers and colored labels: cyan for information, green for completed steps, yellow for warnings, red for errors, and blue for progress. Logs remain plain text. Set `NO_COLOR` to disable colors.
+
+## 4. Find the output and watch offline
+
+For option 1 with course `DevOps` and video subfolder `02`, the files look like this:
 
 ```text
-https://echo360.org.uk/section/12345678-1234-1234-1234-123456789abc/public
+downloads/
+  DevOps/
+    02/
+      source_1.mp4
+      source_2.mp4
+      SOURCE_PREVIEWS.jpg
+      manifest.json
+      combined_large-2_small-1.mp4       (if merged)
+      combined_large-2_small-1.verification.json
+      combined_large-2_small-1.ffmpeg.log
 ```
 
-Copy the actual link from your public course page. The course ID is different from the lesson ID; do not paste the placeholder example unchanged. The wizard displays the URL format before asking for this link.
+Source counts vary. Option 3 uses automatic date/ID subfolders instead of `02`. Option 2 writes to the exact output path you entered.
 
-Copy the complete lesson URL from the browser. Some lesson IDs contain long date/time strings; keep the entire URL, including any query string. Do not invent a lesson ID from a date.
+1. Open a source MP4 to watch one stream, or a combined MP4 to watch both together.
+2. Confirm playback and audio, including a point near the end.
+3. If the files are in OneDrive, confirm they are available locally. The toolkit requests **Always keep on this device** for final MP4s.
+4. Before a flight, disconnect from the network and check that the files still play.
 
-The wizard first tries the lesson URL alone. Some recordings require a public viewing session established by visiting their course page, so the wizard asks for that link only when direct access fails. When a course URL is supplied, the downloader opens the course and lesson in the **same HTTP session**, then reads the player metadata and resolves the highest-resolution playlist. The command-line `--course` option remains available when you already know that link is needed. The downloader supports the unencrypted, single-MP4 byte-range HLS format verified on the supplied Echo360 UK courses, plus directly exposed MP4 tracks. It downloads the referenced MP4 rather than recording your screen.
+`SOURCE_PREVIEWS.jpg` shows separate inputs. A `.partial.mp4` is unfinished; use the final MP4 after successful verification. Keep `manifest.json` and verification reports with their videos so later runs can recognize completed downloads and merges.
 
-This is a purpose-built downloader, not a universal Echo360 client. Login-only institutional pages, DRM/encrypted streams, unrelated player formats, and HLS with separate media files are not implemented. The script reports these cases explicitly. It does not import browser cookies or store your account password. Echo360 changes to its player format may require a script update.
-
-## Output layout and synchronization
+### Combined layout and synchronization
 
 | Element | Output |
 |---|---|
 | Large video | Left, fitted inside 1280 × 720 |
 | Small video | Right, fitted inside 480 × 270 and vertically centered |
 | Complete frame | 1760 × 720, 30 fps |
-| Video format | MP4 with H.264 and `yuv420p` |
-| Audio | One track; AAC is copied, other audio is converted to AAC |
+| Format | MP4, H.264 video, one AAC audio track |
 
-Both pictures preserve their aspect ratio. Black padding fills unused space. The small video sits beside the large one, so it does not cover the slides.
+Both images keep their aspect ratio, with black padding as needed. The smaller picture sits beside the larger one and does not cover it. The original source files remain available for viewing small text at full size.
 
-The video timelines start together. Downloaded Echo360 streams use the lecture's shared timeline and audio; the toolkit does not listen to the sound or automatically detect an offset between unrelated recordings. By default, input durations must match within two seconds. Existing black frames, missing-camera signals, or incorrect source content are preserved.
+The two video timelines start together. Inputs must normally match in duration within two seconds. The toolkit does not detect or repair timing offsets between unrelated recordings. Existing black frames or missing-camera content remain in the output.
 
-To reverse the layout, swap the large/small selections and choose a new output filename. There is no need to download again. Making the computer screen small naturally makes small text harder to read; keep the full-size source MP4 if you may need to inspect it later.
+### Job files
 
-## Combine files you already have
+| File under `jobs/<job-id>/` | Purpose |
+|---|---|
+| `job.json` | Saved inputs; batch jobs can be rerun through option 4 |
+| `STATUS.txt`, `status.json` | Current state, progress, and process IDs |
+| `launcher.json` | Process ID used while the worker starts |
+| `run.log` | Messages and errors |
+| `result.json` | Successful job result |
+| `batch-report.json` | Per-item successes and failures for a batch |
 
-Double-click `START.cmd`, choose **2**, then paste:
+`state: complete` means required checks passed. A failed or forcibly stopped job may leave a partial output; inspect its log and process state before retrying. Do not run simultaneous jobs targeting the same files.
 
-1. The absolute path of the video to show large on the left.
-2. The absolute path of the video to show small on the right.
-3. A **new** output path ending in `.mp4`.
+## Advanced command-line usage
 
-Paths copied with quotes from File Explorer are accepted. The toolkit will not overwrite an input or an existing final output. If you want to review two local inputs first, use the `preview` command below.
-
-## Command-line reference
 
 Open PowerShell in the toolkit folder. These commands use its private Python environment directly, so activation is unnecessary. Replace the example URLs and filenames with real ones. Keep quotes around paths containing spaces.
 
@@ -167,7 +299,7 @@ After visually confirming that source 2 is the teacher and source 1 is the compu
   --encoder auto --background --watch
 ```
 
-For slides large, swap the two input paths and use another output name. Omit `--watch` to return immediately after launching the background job. Without `--background --watch`, the job runs in the foreground and prints progress there; closing that console can interrupt it.
+For slides large, swap the two input paths and use another output name. Omit `--watch` to return immediately after launching the background job. Without `--background`, the job runs in the foreground and prints progress there; closing that console can interrupt it.
 
 ### Make a short trial before encoding a long lecture
 
@@ -181,145 +313,79 @@ For slides large, swap the two input paths and use another output name. Omit `--
 
 `--seconds` encodes only the specified number of seconds from the beginning. Omit it for the full lecture.
 
-### Encoder choices
-
-- `auto`: tests NVIDIA NVENC; uses it when available, otherwise uses the CPU.
-- `nvenc`: requires working NVIDIA hardware encoding. A busy/unsupported GPU produces an error instead of falling back.
-- `cpu`: uses H.264/libx264, `veryfast`, CRF 21. This is slower, but needs no NVIDIA GPU.
-
-NVENC uses preset `p4` and CQ 21. Hardware performance varies. Run a short trial if estimating a long job. Avoid starting extra encoders while another course queue is already using the GPU.
-
-`--allow-different-duration` is an explicit override for unequal local files: the output stops at the shorter input. It does not correct synchronization offsets.
-
-## Batch download and combine without interaction
-
-1. Copy `examples/batch.example.json` to a new file, such as `my-lectures.json`.
-2. Replace the placeholder links and names.
-3. Set `large_source` and `small_source` separately for every lecture. Use the interactive/download workflow first if you have not inspected the streams.
-4. Optionally add `"output_root": "C:/Videos/Echo360"` to each job. JSON accepts forward slashes; with backslashes, write them as `\\`.
-5. Drag your JSON file onto **`RUN_BATCH.cmd`**, or choose **4** in `START.cmd`.
-
-Equivalent command:
+### Run or watch a batch
 
 ```powershell
 .\.venv\Scripts\python.exe .\echo360_tool.py batch .\my-lectures.json --background --watch
-```
 
-The batch processes items sequentially: download, verify, combine, verify, then the next item. A failed item is recorded and the batch continues to the next one. The final `batch-report.json` lists successes and failures. Rerunning the same batch reuses checksum-matching downloads and completed combined files. Do not edit a batch's source roles while reusing the same output name; choose a new output when changing settings.
-
-For a download-only item, set `"action": "download"` and omit `large_source`, `small_source`, and `encoder`. Existing jobs without an `action` field retain their download-and-combine behavior. `batch-report.json` records downloaded lessons under `downloads`, merged files under `files`, and unsuccessful items under `failures`.
-
-Use option **3** to build a download batch from a public course checklist without writing JSON. The toolkit does not automatically filter by start time or infer which source contains slides.
-
-## Background status, stopping, and recovery
-
-Console messages use `>` markers and labels such as `[DOWNLOAD]`, `[READY]`, `[PREVIEW]`, and `[BACKGROUND]`. Interactive terminals show information in cyan, completed steps in green, warnings in yellow, errors in red, and progress in blue. Background logs and redirected output remain plain text, without color escape codes. Set the `NO_COLOR` environment variable to disable colors; terminals without color support also use plain text.
-
-`START.cmd` and `RUN_BATCH.cmd` automatically show a live monitor in the same window. During encoding, it updates about once per second:
-
-```text
-[########------------]  40.0% | 3.2x | ETA 00:17:15 | nvenc
-```
-
-Speed `3.2x` means approximately 3.2 seconds of video are processed per second. ETA is an estimate for encoding only; file verification still runs afterward. Batch jobs also show the current item, such as `Job 2/8`. Download messages appear as they arrive in the log.
-
-To view progress in a **separate window**, double-click **`WATCH.cmd`**. It opens the most recently started job. Drag a particular job folder or its `STATUS.txt` onto `WATCH.cmd` to select that job instead. You can reopen the monitor at any time, including for jobs that have already finished.
-
-From PowerShell:
-
-```powershell
 # Watch the most recently started job
 .\.venv\Scripts\python.exe .\echo360_tool.py watch
 
-# Watch a specific job (replace with your actual job folder)
+# Watch a specific job; replace the folder with your actual job ID
 .\.venv\Scripts\python.exe .\echo360_tool.py watch ".\jobs\20261025-120000-a1b2c3"
 ```
 
-Closing a monitor or pressing **Ctrl+C** only stops that display. The detached worker continues, and other monitors remain open. A monitor reports success only after verification finishes; it reports an error if the worker fails or exits without reporting completion.
+`--watch` requires `--background`. Omit `--watch` to launch a background job and return immediately. For command help, use `echo360_tool.py combine --help` or another command followed by `--help`.
 
-Each detached job gets a folder under `jobs`, such as `jobs/20261025-120000-a1b2c3/`:
+NVENC uses preset `p4` with CQ 21. CPU encoding uses `libx264`, preset `veryfast`, and CRF 21. For local files of unequal duration, `combine --allow-different-duration` explicitly allows output to stop at the shorter input; it does not repair synchronization.
 
-| File | Meaning |
-|---|---|
-| `job.json` | Exact inputs and selected layout |
-| `STATUS.txt` | Readable current state and progress |
-| `status.json` | The same state in JSON, including process IDs |
-| `launcher.json` | Initial launcher process ID, used while the worker starts |
-| `run.log` | Download/encoding messages and errors |
-| `result.json` | Successful final result |
-| `batch-report.json` | Per-item batch successes and failures |
+## Supported recordings
 
-`state: complete` means all required checks succeeded. `state: failed` contains an error; inspect the log. A `.partial.mp4` is an unfinished file and should not be treated as the final result.
+The downloader supports publicly viewable Echo360 lessons using the unencrypted, single-MP4 byte-range HLS format verified on the supplied Echo360 UK courses, plus directly exposed MP4 tracks. A public course URL establishes a viewing session when needed; its cookies stay in the downloader's session. The tool does not import browser cookies or store account passwords.
 
-The background worker runs independently of the launcher. It temporarily prevents automatic Windows sleep while running, without changing your permanent power settings. **Do not shut down, restart, manually sleep the computer, or close a laptop lid while it is working.** Keep it powered. Internet is required for downloads, but not for combining local files.
-
-To stop a job, use Task Manager's Details view and the worker/FFmpeg PIDs recorded in `status.json`. Stop the worker and its active FFmpeg process. Stopping only the launcher window will not stop a detached worker. After a forced stop, the last status can remain `running`; check the PIDs before assuming it is active. There is no automatic restart after reboot.
-
-After stopping, rerun the download or batch command. Finished verified files remain. Interrupted encoding starts again from the beginning of that lecture; the toolkit does not resume halfway through an MP4. Do not start two jobs targeting the same output file.
-
-## Offline availability and verification
-
-Downloaded streams are checked for video/audio, expected duration, reading every media packet, and decoding samples at the start, middle, and end. The script records file sizes and SHA-256 hashes in `manifest.json`. Combined files get their own `.verification.json` and `.ffmpeg.log`.
-
-These checks detect many transfer and playback errors; they are not a frame-by-frame content review. The three preview positions may miss a temporary camera switch or recording outage. Play additional sections if the role is uncertain.
-
-On Windows, the toolkit requests **Always keep on this device** using `attrib +P -U` for final MP4s. If the operation fails, it prints a note. Before a flight, confirm the OneDrive files show the local availability checkmark and try playing them with networking disabled. A normal compatible MP4 player is sufficient.
+Login-only institutional pages, DRM/encrypted streams, and HLS with separate media files are not implemented. Course discovery depends on the current public course page and syllabus format. Platform changes may require an update.
 
 ## Troubleshooting
 
 | Message or symptom | What to do |
 |---|---|
-| Public player configuration not found | Use the exact lesson/classroom URL and its public course URL. Confirm the recording is publicly viewable. Login-only pages are outside this toolkit's scope. |
-| HTTP 403 / access denied | Start again with the public course link so a fresh viewing session is established. Do not reuse a copied, expired CDN URL. |
-| Encrypted/protected or unsupported HLS layout | This format is not implemented. Use the platform's official download option if offered. |
-| Existing file is unverified or changed | Move that file aside and rerun; it is not silently replaced. Keep completed files and `manifest.json` together. |
-| Output already exists | Choose a new MP4 filename. For a batch, keep the matching verification report so it can recognize completed output. |
-| Durations differ | Check that both files belong to the same lesson. Use the explicit shorter-input override only when appropriate. |
-| No signal / black picture | Inspect the original source MP4 and another time point. The source recording itself may lack a camera or screen signal. |
-| NVENC unavailable or busy | Wait for other GPU jobs, select `cpu`, or use `auto`. A GPU failure during an encode is logged; it is not silently restarted on CPU. |
-| Installation failed | Check internet access and Python 3.10+, then rerun `SETUP.cmd`. |
-| Toolkit folder moved | Recreate `.venv` with `SETUP.cmd` in the new location. Old job files contain absolute input paths and may need updating. |
-| Disk full | Free space, preserve completed outputs, and rerun the affected task. Temporary media is under each lecture's `_temporary` folder. |
+| Public player or course configuration not found | Check the full URL and confirm the page is publicly viewable. Option 1 may also need the course's public link. |
+| HTTP 403 / access denied | Retry with the public course link to establish a fresh viewing session. Do not reuse expired CDN links. |
+| A lesson is marked `[-]` | It has no available video, is still processing, or is live. Reload the course later if availability changes. |
+| Numbered selection appears instead of arrow-key controls | Use numbers/ranges, or open `START.cmd` in a supported Windows console. |
+| Encrypted/protected or unsupported HLS layout | This recording format is not implemented. Use Echo360's official download option if available. |
+| Existing file is unverified or changed | Move that file aside before retrying. Keep completed files together with their manifest or verification report. |
+| Output already exists | Choose a new output filename in option 2. A batch can reuse a completed merge when its verification report and checksum match. |
+| Durations differ | Confirm both files belong to the same lesson. Use the advanced shorter-input override only when appropriate. |
+| No signal / black picture | Inspect the source MP4 at several points; the original recording may lack a camera or screen signal. |
+| NVENC unavailable or busy | Wait for other GPU work to finish, choose `cpu`, or use `auto`. |
+| Installation failed | Check Python 3.10+ and internet access, then rerun `SETUP.cmd`. |
+| Toolkit folder moved / copied `.venv` no longer works | Close toolkit processes, move the old `.venv` out of the toolkit folder, and rerun `SETUP.cmd` to create a new one. Preserve downloads and jobs; saved jobs may contain old absolute paths. |
+| Disk full | Free space and retry. Temporary download files are in each lesson's `_temporary` folder. |
+| Batch finished with failures | Inspect `batch-report.json` and `run.log`, resolve the cause, then rerun the saved batch with option 4. |
 
-## Included files
+## Project files
 
-- `echo360_tool.py`: downloader, preview generator, combiner, wizard, batch processor, and background worker.
-- `course_picker.py`: public course discovery and the console lesson checklist.
-- `START.cmd`: interactive workflow.
-- `WATCH.cmd`: live status for the latest job, or a job folder dropped onto it.
-- `SETUP.cmd`, `setup.ps1`, `requirements.txt`: private Python environment and dependencies.
-- `RUN_BATCH.cmd`, `examples/batch.example.json`: unattended batch workflow.
-- `tests/test_toolkit.py`: offline regression tests for playlist handling, source IDs, and overwrite guards.
-- `tests/test_download_integration.py`: local HTTP download, audio muxing, verification, and cache reuse tests.
-- `tests/test_wizard.py`: folder ordering, optional merging, source selection, and access fallback tests.
-- `tests/test_watch.py`: live progress, completion, errors, interrupted monitoring, and job selection tests.
-- `tests/test_course_picker.py`: syllabus groups, availability, lesson selection, and download-only batch tests.
+| File | Purpose |
+|---|---|
+| `START.cmd` | Interactive menu |
+| `SETUP.cmd`, `setup.ps1`, `requirements.txt` | Private Python environment and dependencies |
+| `WATCH.cmd` | Reopen live progress |
+| `RUN_BATCH.cmd` | Run a saved batch dropped onto the launcher |
+| `echo360_tool.py` | Downloader, previews, merging, wizard, and background worker |
+| `course_picker.py` | Public course discovery and console checklist |
+| `examples/batch.example.json` | Editable download-and-merge batch example |
+| `tests/` | Offline tests for downloading, selection, merging guards, and monitoring |
 
-Run the offline tests with:
+## Validation
+
+Validation recorded on **25 October 2026**, on Windows with Python 3.13, imageio-ffmpeg 0.6.0, Pillow 12.2.0, and bundled FFmpeg 7.1:
+
+- **37 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, wizard prompts, course discovery/selection, batch failure handling, and live monitoring.
+- Local HTTP integration downloaded two streams plus shared audio, muxed and verified the outputs, created source previews, and checked checksum-based reuse. A two-lesson download batch also completed successfully.
+- Metadata discovery succeeded for all four supplied public courses. The Windows checklist was exercised in a real console using Space/X, arrows, Page Down, and Enter.
+- Real lecture files were merged into short CPU-encoded samples in both layout orientations. Output checks passed, and the layout was visually reviewed.
+- Background monitoring was verified with eight- and sixty-second samples. Closing one monitor left the worker running; another monitor observed successful completion.
+- Setup worked from a path containing spaces and Estonian characters.
+
+Run the reproducible offline tests from the toolkit folder:
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-For help on any command, append `--help`, for example `echo360_tool.py combine --help`.
+Verification checks duration, video/audio presence, reading all media packets, and decoding samples at the beginning, middle, and end. Manifests and output reports record SHA-256 hashes. These checks do not replace a full content review.
 
-## Validation
+A full multi-hour batch was not repeated during these toolkit checks. The sample merge tests used the CPU; NVIDIA encoding uses the established FFmpeg settings from the earlier lecture queue. Support for every Echo360 deployment is not claimed.
 
-Validated on 25 October 2026, Windows, Python 3.13, with the private environment created by `setup.ps1`.
-
-- Setup succeeded from a folder whose path includes spaces and Estonian characters. Dependencies: imageio-ffmpeg 0.6.0 and Pillow 12.2.0; bundled FFmpeg 7.1.
-- Thirty-seven automated tests passed. They cover duration parsing, highest-resolution playlist selection, relative URLs, rejecting encrypted/unsupported layouts, source IDs independent of array order, protecting input files, the HTTP download integration, and the interactive folder/merge/source-selection flow, including public-session fallback, preview announcements after acceptance, and plain-text redirected logs. Monitor tests cover progress updates, success and failure reporting, dead workers, Ctrl+C without changing worker status, and latest-job selection. Course tests cover session reuse, grouped lessons, availability, keyboard and numbered selections, cancellation, selected-only batches, failure continuation, and compatibility with existing merge jobs.
-- The integration test generated two short video-only files and separate AAC audio, served them over local HTTP, downloaded and muxed both streams, verified playback, generated a contact sheet, and confirmed checksum-based reuse without another full transfer. Test media was temporary.
-- The HTTP integration also downloaded a two-lesson batch into separate folders, verified both source streams per lesson, and produced a successful batch report without merging.
-- Public course discovery was checked against all four supplied course links: DevOps returned 48 lessons / 24 available recordings, ICA0002 64 / 16, ICS0020 32 / 16, and MEM5260 13 / 13. Only metadata was fetched. Counts reflect this validation date.
-- The Windows console checklist was exercised in a real terminal: Space/X marking, arrow navigation, Page Down, and Enter returned exactly the selected rows and restored the original console screen.
-- A real public Echo360 lesson was inspected using a fresh public course session. Both video playlists and the audio playlist resolved successfully. Small HTTP range requests returned valid MP4 headers for all three tracks. Evidence: `validation/public-session-check.json`. This check did not redownload the full lecture.
-- Two detached background jobs successfully combined existing real lecture files into three-second samples, one with the teacher large and one with the computer large. Both jobs reached `complete`, including packet reads and sample decoding. Both outputs contain H.264 video at 1760 × 720 and AAC audio.
-- The second background job used the toolkit's private Python environment. The launcher returned before encoding completed. CPU encoding was used for these tests so the pre-existing course encoding queue could continue using the GPU.
-- An additional eight-second CPU merge of real lecture sources ran with `--background --watch`. The monitor displayed encoding and verification stages and reported success after output checks passed; progress metadata was saved in `status.json`.
-- A sixty-second CPU sample verified that terminating the monitor process leaves the worker running. A second monitor showed percentage, speed, and ETA until verification completed successfully.
-- The generated `validation/layout-comparison.jpg` was visually reviewed: the selected large video is on the left, the small video is centered on the right, and neither overlaps the other.
-
-The toolkit's new batch orchestration was reviewed but a full multi-hour batch was not repeated. NVIDIA encoding uses the same established FFmpeg settings as the existing lecture queue; these toolkit sample tests specifically exercised the CPU path. No claim is made that every Echo360 deployment or player format is supported.
-
-Samples and their verification reports are kept locally under `validation`. Completed test job logs remain locally under `jobs`. These directories, lecture media, and machine-specific paths are excluded from the Git repository. They are examples, not ongoing tasks; a fresh clone contains the source code and reproducible offline tests instead.
+Downloaded media, local job logs, and validation samples are excluded from Git. A fresh clone contains the scripts, documentation, example configuration, and reproducible tests.
