@@ -214,7 +214,7 @@ def choose_lessons(lessons):
         columns, lines = shutil.get_terminal_size((100, 25))
         width = max(1, columns-1)
         controls = wrap_controls(['Up/Down: move', 'Space/X: mark', 'A: all', 'N: none',
-                                  'Enter: continue', 'Q/Esc: cancel', 'PgUp/PgDn: page',
+                                  'Enter: next', 'Q/Esc: cancel', 'PgUp/PgDn: page',
                                   'Home/End: first/last'], width)
         footer_size = 2 + len(controls)
         page_size = max(1, lines - 6 - footer_size)

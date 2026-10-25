@@ -132,8 +132,10 @@ class CourseTests(unittest.TestCase):
                 self.assertTrue(all(len(line) < width for line in plain))
                 footer = '\n'.join(plain[plain.index('-' * (width - 1), 2) + 1:])
                 for label in ('Up/Down: move', 'Space/X: mark', 'A: all', 'N: none',
-                              'Enter: continue', 'Q/Esc: cancel', 'PgUp/PgDn: page', 'Home/End: first/last'):
+                              'Enter: next', 'Q/Esc: cancel', 'PgUp/PgDn: page', 'Home/End: first/last'):
                     self.assertIn(label, footer)
+                if width == 120:
+                    self.assertEqual(len(footer.splitlines()), 2)  # Count line, then all controls.
         # Page movement uses the height and wrapped footer from the current render.
         plain = re.sub(r'\x1b\[[0-9;?]*[A-Za-z]', '', screens[2])
         self.assertIn('> [ ]  11.', plain)
