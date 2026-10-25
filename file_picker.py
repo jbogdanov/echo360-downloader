@@ -4,9 +4,8 @@ import os
 import re
 import shutil
 import sys
-import textwrap
 
-from course_picker import windows_terminal, read_windows_key
+from course_picker import windows_terminal, read_windows_key, wrap_controls, color_controls
 
 VIDEO_EXTENSIONS = {'.mp4', '.mkv', '.mov', '.avi', '.webm', '.m4v', '.ts', '.mts', '.m2ts', '.wmv'}
 
@@ -14,13 +13,7 @@ VIDEO_EXTENSIONS = {'.mp4', '.mkv', '.mov', '.avi', '.webm', '.m4v', '.ts', '.mt
 def navigation_lines(width):
     controls = ['Up/Down: move', 'Enter: open/select', 'Backspace: parent',
                 'P: paste path', 'Q/Esc: cancel', 'PgUp/PgDn: page']
-    rows = []
-    for control in controls:
-        if rows and len(rows[-1]) + 3 + len(control) <= width:
-            rows[-1] += ' | ' + control
-        else:
-            rows.extend(textwrap.wrap(control, width=max(1, width)))
-    return rows
+    return wrap_controls(controls, width)
 
 
 def video_entries(folder, excluded=None):
@@ -91,8 +84,7 @@ def choose_video(title, start, excluded=None):
             if 'NO_COLOR' not in os.environ:
                 rows[0] = f'\033[1;36m{rows[0]}\033[0m'
                 for index in range(len(rows) - len(controls), len(rows)):
-                    rows[index] = re.sub(r'(^| \| )([^:]+)(?=:)',
-                                         lambda match: f'{match[1]}\033[94m{match[2]}\033[0m', rows[index])
+                    rows[index] = color_controls(rows[index])
                 if selected_row is not None:
                     rows[selected_row] = f'\033[92m{rows[selected_row]}\033[0m'
             print('\033[H\033[2J' + '\n'.join(rows), end='', flush=True)

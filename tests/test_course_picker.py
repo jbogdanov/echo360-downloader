@@ -1,6 +1,8 @@
 """Public syllabus parsing, console selection, and selected-lesson batches."""
 import io
 import json
+import os
+import re
 from pathlib import Path
 import sys
 import tempfile
@@ -107,6 +109,43 @@ class CourseTests(unittest.TestCase):
         rows = parse([entry('a')])
         keys = iter(['enter', 'q'])
         self.assertEqual(picker.choose_by_keys(rows, lambda: next(keys), lambda *_: None, 10), [])
+
+    def test_course_screen_matches_file_picker_and_resizes_footer(self):
+        rows = parse([entry(str(i)) for i in range(40)])
+        sizes = [(120, 25), (80, 20), (40, 25), (100, 25)]
+        with patch.object(picker, 'windows_terminal', return_value=True), \
+                patch.object(picker, 'read_windows_key', side_effect=['space', 'pagedown', 'pagedown', 'enter']), \
+                patch.object(picker.shutil, 'get_terminal_size',
+                             side_effect=[os.terminal_size(size) for size in sizes]), \
+                patch.dict(os.environ), patch('sys.stdout', new_callable=io.StringIO) as output:
+            os.environ.pop('NO_COLOR', None)
+            selected = picker.choose_lessons(rows)
+        self.assertEqual(selected, [rows[0]])
+        screens = output.getvalue().split('\033[H\033[2J')[1:]
+        for (width, height), screen in zip(sizes, screens):
+            with self.subTest(width=width):
+                self.assertIn('\033[1;36mECHO360 RIPPER', screen)
+                self.assertIn('\033[92m>', screen)
+                self.assertIn('\033[94mUp/Down\033[0m: move', screen)
+                plain = re.sub(r'\x1b\[[0-9;?]*[A-Za-z]', '', screen).splitlines()
+                self.assertEqual(len(plain), height)
+                self.assertTrue(all(len(line) < width for line in plain))
+                footer = '\n'.join(plain[plain.index('-' * (width - 1), 2) + 1:])
+                for label in ('Up/Down: move', 'Space/X: mark', 'A: all', 'N: none',
+                              'Enter: continue', 'Q/Esc: cancel', 'PgUp/PgDn: page', 'Home/End: first/last'):
+                    self.assertIn(label, footer)
+        # Page movement uses the height and wrapped footer from the current render.
+        plain = re.sub(r'\x1b\[[0-9;?]*[A-Za-z]', '', screens[2])
+        self.assertIn('> [ ]  11.', plain)
+
+    def test_course_screen_honors_no_color_and_restores_on_cancel(self):
+        with patch.object(picker, 'windows_terminal', return_value=True), \
+                patch.object(picker, 'read_windows_key', return_value='escape'), \
+                patch.dict(os.environ, {'NO_COLOR': '1'}), \
+                patch('sys.stdout', new_callable=io.StringIO) as output:
+            self.assertEqual(picker.choose_lessons(parse([entry('a')])), [])
+        self.assertNotRegex(output.getvalue(), r'\x1b\[[0-9;]*m')
+        self.assertTrue(output.getvalue().endswith('\033[?25h\033[?1049l'))
 
     def test_course_wizard_builds_only_selected_download_jobs(self):
         rows = parse([entry('a'), entry('b'), entry('c')])

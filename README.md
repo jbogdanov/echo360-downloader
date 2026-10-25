@@ -130,7 +130,7 @@ If the console cannot support keyboard navigation, option 2 asks you to paste bo
 1. Open `START.cmd` and choose **3**.
 2. At **Public course/section URL**, paste the public course link ending in `/public`.
 3. Wait for the lesson list to load. It shows dates and times in the course's local timezone and indicates which recordings are available.
-4. Move through the list and mark the lessons you want with **Space** or **X**. Selected lessons display `[X]`. Nothing is selected initially.
+4. Move through the list and mark the lessons you want with **Space** or **X**. The picker uses the same cyan header, dividers, and bright green current row as the file browser. Marked lessons display `[X]` and remain green when you move away. Nothing is selected initially. Keyboard controls sit in a bottom footer with blue key names and wrap to fit narrower windows; paging adjusts to the available space.
 5. Press **Enter** when your selection is ready. The selected lessons are listed in the console.
 6. At **Course folder name [Echo360]**, enter a name such as `Course`, or press Enter for `Echo360`.
 7. At **Download root folder**, press Enter for `downloads`, or enter an absolute path. Each selected lesson gets its own automatic date/ID subfolder inside the course folder; there is no individual subfolder-name prompt in this workflow.
@@ -402,7 +402,7 @@ Login-only institutional pages, DRM/encrypted streams, and HLS with separate med
 
 Validation recorded on **25 October 2026**, on Windows with Python 3.13, imageio-ffmpeg 0.6.0, Pillow 12.2.0, and bundled FFmpeg 7.1:
 
-- **72 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, main-menu, Yes/No, encoder, and file-browser navigation, terminal restoration and file-footer resizing, wizard prompts and automatic output naming, course discovery/selection and shared batch layouts without previews, batch failure handling, live monitoring, lock cleanup with concurrent processes, and completed-job cleanup.
+- **74 automated tests passed**, covering playlist parsing, source IDs, overwrite guards, main-menu, Yes/No, encoder, and file-browser navigation, terminal restoration and file/lesson-footer resizing, wizard prompts and automatic output naming, course discovery/selection and shared batch layouts without previews, batch failure handling, live monitoring, lock cleanup with concurrent processes, and completed-job cleanup.
 - Local HTTP integration downloaded two streams plus shared audio, muxed and verified the outputs, created source previews, and checked checksum-based reuse. A two-lesson download batch also completed successfully.
 - All eight source MP4s checked across four downloaded lessons contained AAC audio. Ten-second samples starting one minute into each file decoded with non-silent audio; this was a sample check, not a full listening review.
 - Metadata discovery succeeded for all four supplied public courses. The Windows checklist was exercised in a real console using Space/X, arrows, Page Down, and Enter.

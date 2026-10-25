@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import sys
+import textwrap
 import urllib.parse
 import urllib.request
 
@@ -133,6 +134,7 @@ def choose_by_keys(lessons, read_key, render, page_size):
     cursor = 0
     while True:
         render(cursor, selected)
+        step = page_size() if callable(page_size) else page_size
         key = read_key()
         if key in ('q', 'escape'):
             return []
@@ -151,9 +153,9 @@ def choose_by_keys(lessons, read_key, render, page_size):
         elif key == 'down':
             cursor = min(len(lessons)-1, cursor+1)
         elif key == 'pageup':
-            cursor = max(0, cursor-page_size)
+            cursor = max(0, cursor-step)
         elif key == 'pagedown':
-            cursor = min(len(lessons)-1, cursor+page_size)
+            cursor = min(len(lessons)-1, cursor+step)
         elif key == 'home':
             cursor = 0
         elif key == 'end':
@@ -182,35 +184,69 @@ def read_windows_key():
     return {' ': 'space', '\r': 'enter', '\x08': 'backspace', '\x1b': 'escape', '\x03': 'interrupt'}.get(key, key.lower())
 
 
+def wrap_controls(controls, width):
+    rows = []
+    for control in controls:
+        if rows and len(rows[-1]) + 3 + len(control) <= width:
+            rows[-1] += ' | ' + control
+        else:
+            rows.extend(textwrap.wrap(control, width=max(1, width)))
+    return rows
+
+
+def color_controls(line):
+    if 'NO_COLOR' in os.environ:
+        return line
+    return re.sub(r'(^| \| )([^:]+)(?=:)',
+                  lambda match: f'{match[1]}\033[94m{match[2]}\033[0m', line)
+
+
 def choose_lessons(lessons):
     if not any(row['available'] for row in lessons):
         print('> No recorded videos are available to select in this course.')
         return []
     if not windows_terminal():
         return choose_by_line(lessons)
-    columns, lines = shutil.get_terminal_size((100, 25))
-    page_size = max(1, lines-7)
+    page_size = 1
 
     def render(cursor, selected):
-        width = max(1, shutil.get_terminal_size((columns, lines)).columns-1)
+        nonlocal page_size
+        columns, lines = shutil.get_terminal_size((100, 25))
+        width = max(1, columns-1)
+        controls = wrap_controls(['Up/Down: move', 'Space/X: mark', 'A: all', 'N: none',
+                                  'Enter: continue', 'Q/Esc: cancel', 'PgUp/PgDn: page',
+                                  'Home/End: first/last'], width)
+        footer_size = 2 + len(controls)
+        page_size = max(1, lines - 6 - footer_size)
         first = cursor // page_size * page_size
-        rows = ['ECHO360 RIPPER - Select course lessons',
-                'Up/Down: move | Space/X: mark | A: all | N: none | Enter: start | Q: cancel',
-                '[X] selected   [ ] available   [-] unavailable; dates use course local time', '']
+        rows = ['ECHO360 RIPPER - Select course lessons', '-' * width,
+                'Dates and times use the course local timezone.', '',
+                '[X] selected   [ ] available   [-] unavailable', '']
         for i in range(first, min(first+page_size, len(lessons))):
             row = lessons[i]
             marker = 'X' if i in selected else ' ' if row['available'] else '-'
             label = f"{'>' if i == cursor else ' '} [{marker}] {i+1:3}. {lesson_label(row)}"
-            label = label[:width]
-            if i in selected and 'NO_COLOR' not in os.environ:
-                label = f'\033[32m{label}\033[0m'
             rows.append(label)
-        rows.extend(['', f'{len(selected)} selected | Rows {first+1}-{min(first+page_size, len(lessons))} of {len(lessons)} | PgUp/PgDn: page'])
+        rows.extend([''] * max(0, lines - footer_size - len(rows)))
+        rows.extend(['-' * width,
+                     f'{len(selected)} selected | Rows {first+1}-{min(first+page_size, len(lessons))} of {len(lessons)}',
+                     *controls])
+        rows = [re.sub(r'[\x00-\x1f\x7f]', '', row)[:width] for row in rows]
+        if 'NO_COLOR' not in os.environ:
+            rows[0] = f'\033[1;36m{rows[0]}\033[0m'
+            for i in range(first, min(first+page_size, len(lessons))):
+                index = 6 + i - first
+                if i == cursor:
+                    rows[index] = f'\033[92m{rows[index]}\033[0m'
+                elif i in selected:
+                    rows[index] = f'\033[32m{rows[index]}\033[0m'
+        for index in range(len(rows) - len(controls), len(rows)):
+            rows[index] = color_controls(rows[index])
         # Clear and redraw only the alternate screen; restore original output on exit.
-        print('\033[H\033[2J' + '\n'.join(row[:width] if '\033[' not in row else row for row in rows), end='', flush=True)
+        print('\033[H\033[2J' + '\n'.join(rows), end='', flush=True)
 
     print('\033[?1049h\033[?25l', end='', flush=True)
     try:
-        return choose_by_keys(lessons, read_windows_key, render, page_size)
+        return choose_by_keys(lessons, read_windows_key, render, lambda: page_size)
     finally:
         print('\033[?25h\033[?1049l', end='', flush=True)
