@@ -85,7 +85,7 @@ Follow these prompts in order:
 5. At **Download root folder**, press Enter for the toolkit's `downloads` folder, or enter an absolute path such as `C:\Videos\Echo360`. With the example names and default root, the destination is `downloads\Course\02`.
 6. If **Public course/section URL** appears, paste that course's public link. Visiting it establishes the viewing session needed by some lessons.
 7. Wait while every available source stream downloads at its highest listed resolution and receives the shared audio. **Keep this console open during this download stage.**
-8. At **Combine the downloaded streams into one video? [Enter = yes, n = no]**, press **Enter** or type **y** to merge. Type **n** to finish with separate MP4s.
+8. At **Combine the downloaded streams into one video? [yes] no**, press **Enter** or type **y** to merge. Type **n** to finish with separate MP4s.
 9. After you press **Enter** or type **y** to accept merging, the toolkit creates and opens a temporary `SOURCE_PREVIEWS.jpg`. Inspect the rows to identify the camera and computer screen. These are **input source previews**, not a preview of the final merged layout. The image is removed after a successful merge.
 10. At **Source ID for the LARGE video on the LEFT (1, 2)**, enter the ID you want large. The prompt lists the actual available IDs. With two streams, the other becomes small on the right automatically. With more than two, choose the small source from a second prompt.
 11. At **Encoder: auto, nvenc, or cpu [auto]**, press Enter for `auto`, or choose an encoder from the table below.
@@ -130,7 +130,7 @@ Option 2 asks for **file paths**, not source IDs, and does not automatically ope
 5. Press **Enter** when your selection is ready. The selected lessons are listed in the console.
 6. At **Course folder name [Echo360]**, enter a name such as `Course`, or press Enter for `Echo360`.
 7. At **Download root folder**, press Enter for `downloads`, or enter an absolute path. Each selected lesson gets its own automatic date/ID subfolder inside the course folder; there is no individual subfolder-name prompt in this workflow.
-8. At **Combine the downloaded streams into one video? [Enter = yes, n = no]**, press Enter to merge each lesson, or type `n` to download only.
+8. At **Combine the downloaded streams into one video? [yes] no**, press Enter to merge each lesson, or type `n` to download only.
 9. If merging, the toolkit reads the available source IDs from the first selected lesson. **No previews are created or opened.** At **Source ID for the LARGE video on the LEFT for all lessons (1, 2)**, choose the source you want large throughout the batch. With two streams, the other automatically becomes small; with more than two, choose the small source once too.
 10. Choose `auto`, `nvenc`, or `cpu`, or press Enter for `auto`. This encoder and the selected source layout apply to every lesson. Download-only batches skip the source and encoder questions.
 11. The background batch downloads and, if requested, merges each lesson in sequence. Follow progress in the same window. Each lesson folder contains the source MP4s with audio and, when merged, a file such as `combined_large-2_small-1.mp4`.
