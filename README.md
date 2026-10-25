@@ -32,14 +32,7 @@ You need Windows 10 or 11, Python **3.10 or newer**, an internet connection for 
 
 Use **Up / Down** to move the `>` marker, then press **Enter** to open the selected workflow. The current choice is also highlighted in color when supported:
 
-```text
-Up/Down: move | Enter: choose | Q/Esc: quit
-
-> Download a lesson (optional merge)
-  Merge two existing local video files
-  Select lessons from a public course and batch download (optional merge)
-  Run a saved batch JSON file
-```
+![Main menu with four workflows and the current choice highlighted in green](docs/screenshots/main-menu.jpg)
 
 | You want to… | Choose |
 |---|---|
@@ -107,6 +100,8 @@ Yes/No and encoder selectors use arrow keys and Enter, with the current choice h
 
 A failure after encoding starts is reported rather than automatically restarted with another encoder.
 
+![Encoder selection with Auto selected, plus CPU and NVIDIA options](docs/screenshots/encoder-selection.jpg)
+
 ## Option 2: Merge two local videos
 
 Use this after a course batch download, or whenever you already have both source files.
@@ -118,6 +113,8 @@ Use this after a course batch download, or whenever you already have both source
 5. The output path is generated automatically and displayed. With these sources, it is `combined_large-2_small-1.mp4` in the same lesson folder, just like option 1.
 6. Use the arrow keys to choose **Auto**, **CPU**, or **NVIDIA (NVENC)**, then press Enter. **Auto** is selected by default.
 7. Watch the background merge's progress. When all checks pass, open the output MP4 in your video player.
+
+![File browser for choosing the large video, with lesson folders and keyboard controls](docs/screenshots/file-browser.jpg)
 
 Keyboard controls use a fixed bottom footer, separated from the file list by a divider, with blue key names and descriptions in the default color. They fit on one line when space allows and wrap onto additional lines in narrower windows so no shortcuts are cut off. The footer and file-list page size adjust when you resize the console. The helper text has a blank line before and after it. Use **Backspace** or the **[..] Parent folder** row to go up, **Page Up / Page Down** to scroll, and **Home / End** to jump to the first / last entry. Press **P** to paste a folder or video path, including a path on another drive; quotes copied from File Explorer are accepted. **Q / Esc** cancels without starting a merge. The browser shows folders and common video formats, including MP4, MKV, MOV, and WebM.
 
@@ -138,6 +135,8 @@ If the console cannot support keyboard navigation, option 2 asks you to paste bo
 9. If merging, the toolkit reads the available source IDs from the first selected lesson. **No previews are created or opened.** At **Source ID for the LARGE video on the LEFT for all lessons (1, 2)**, choose the source you want large throughout the batch. With two streams, the other automatically becomes small; with more than two, choose the small source once too.
 10. Use the arrow keys to choose **Auto**, **CPU**, or **NVIDIA (NVENC)**, then press Enter. **Auto** is selected by default. This encoder and the selected source layout apply to every lesson. Download-only batches skip the source and encoder questions.
 11. The background batch downloads and, if requested, merges each lesson in sequence. Follow progress in the same window. Each lesson folder contains the source MP4s with audio and, when merged, a file such as `combined_large-2_small-1.mp4`.
+
+![Course lesson picker with seven recordings checked and navigation controls at the bottom](docs/screenshots/course-selection.jpg)
 
 ```text
   [X]   1. 2026-09-01 14:00 (Europe/Tallinn) | Lecture 1
@@ -193,6 +192,8 @@ For an item that should only download, set `"action": "download"` and omit `larg
 The report lists download-only results under `downloads`, merged results under `files`, and errors under `failures`. A failed item does not prevent later items from running. Reruns reuse verified completed files. To reverse a completed layout, use option 2 with the input paths swapped. For a custom output filename, use the advanced `combine` command below.
 
 ## 3. Monitor a running job
+
+![Live merge progress showing completion percentage, encoding speed, and estimated time remaining](docs/screenshots/merge-progress.jpg)
 
 Once **[BACKGROUND] Job started** appears, the worker runs independently of the console. Options 1 and 2 launch background merging; options 3 and 4 launch the whole batch in the background.
 
